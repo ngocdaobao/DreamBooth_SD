@@ -3,7 +3,7 @@
 # This file includes only packages that need to be installed or upgraded
 
 # Core diffusion & transformers (may need update)
-diffusers>=0.36.0.dev0
+diffusers
 transformers>=4.36.0
 safetensors>=0.4.0
 
