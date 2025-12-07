@@ -1,0 +1,43 @@
+# Requirements for train_dreambooth_sdxl_lora.py on Kaggle
+# Kaggle pre-installs: torch, torchvision, PIL, numpy, pandas, etc.
+# This file includes only packages that need to be installed or upgraded
+
+# Core diffusion & transformers (may need update)
+diffusers>=0.36.0
+transformers>=4.36.0
+safetensors>=0.4.0
+
+# Parameter-efficient fine-tuning (LoRA)
+peft>=0.9.0
+
+# Distributed training & mixed precision
+accelerate>=0.27.0
+
+# Optimization utilities
+bitsandbytes>=0.42.0  # For 8-bit Adam (optional but recommended)
+
+
+# Additional utilities (usually pre-installed but listed for completeness)
+Pillow>=10.0.0
+ftfy>=6.1.1  # For text cleaning in tokenizers
+opencv-python>=4.8.0  # Image processing (often pre-installed)
+
+# Optional: for advanced features
+xformers>=0.0.23  # Memory-efficient attention (optional, for --enable_xformers_memory_efficient_attention)
+wandb>=0.16.0  # For logging (optional, if using --report_to wandb)
+tensorboard>=2.14.0  # For TensorBoard logging (usually pre-installed)
+
+# For Prodigy optimizer (if using --optimizer prodigy)
+prodigy-ai>=0.2.1
+datasets
+numpy
+scipy
+torch
+torchvision
+huggingface-hub>=0.34.0
+tqdm
+protobuf
+deepspeed
+einops
+xformers
+opencv-python
