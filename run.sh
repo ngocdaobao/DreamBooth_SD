@@ -1,4 +1,4 @@
-# For orginal result:
+# For original result:
 #   --num_train_epochs=500
 #   --num_class_images=200
 
@@ -14,7 +14,7 @@ python train_dreambooth_sdxl_lora.py \
   --unique_token="sks" \
   --resolution=1024 \
   --train_batch_size=1 \
-  --num_train_epochs=1 \ 
+  --num_train_epochs=1 \
   --learning_rate=1e-4 \
   --mixed_precision="fp16" \
   --with_prior_preservation \
@@ -22,4 +22,4 @@ python train_dreambooth_sdxl_lora.py \
   --train_text_encoder \
   --use_8bit_adam \
   --enable_xformers_memory_efficient_attention \
-  --gradient_checkpointing 
+  --gradient_checkpointing
