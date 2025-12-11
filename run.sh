@@ -21,5 +21,4 @@ python train_dreambooth_sdxl_lora.py \
   --prior_loss_weight=1.0 \
   --train_text_encoder \
   --use_8bit_adam \
-  --enable_xformers_memory_efficient_attention \
   --gradient_checkpointing
