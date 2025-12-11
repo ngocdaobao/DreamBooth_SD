@@ -1039,7 +1039,7 @@ def main(args):
 
     # Generate class images if prior preservation is enabled.
     if args.with_prior_preservation:
-        if not os.exists(args.class_data_dir):
+        if not os.path.exists(args.class_data_dir):
             os.makedirs(args.class_data_dir)
         class_images_dir = Path(args.class_data_dir)
         if not class_images_dir.exists():
