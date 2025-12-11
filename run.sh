@@ -15,7 +15,6 @@ python train_dreambooth_sdxl_lora.py \
   --resolution=1024 \
   --train_batch_size=1 \
   --num_train_epochs=1 \ 
-  --checkpointing_steps=500 \
   --learning_rate=1e-4 \
   --mixed_precision="fp16" \
   --with_prior_preservation \
