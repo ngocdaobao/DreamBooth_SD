@@ -1,4 +1,6 @@
-!python train_dreambooth_sdxl_lora.py \
+
+
+python train_dreambooth_sdxl_lora.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
   --instance_data_dir="/kaggle/input/instance_images" \
   --class_data_dir="/kaggle/input/class_images" \

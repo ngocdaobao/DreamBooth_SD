@@ -262,6 +262,8 @@ def import_model_class_from_model_name_or_path(
 
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
+    parser.add_argument("--unique_token", type=str, default='sks')
+    parser.add_argument("--class_token", type=str, default=None)
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
@@ -359,7 +361,8 @@ def parse_args(input_args=None):
         "--validation_prompt",
         type=str,
         default=None,
-        help="A prompt that is used during validation to verify that the model is learning.",
+        action="append",
+        help="Prompt(s) to use during validation. Can be specified multiple times for multiple prompts.",
     )
     parser.add_argument(
         "--num_validation_images",
@@ -1996,41 +1999,86 @@ def main(args):
         pipeline.load_lora_weights(args.output_dir)
 
         # run inference
-        images = []
-        if args.validation_prompt and args.num_validation_images > 0:
-            pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
-            images = log_validation(
-                pipeline,
-                args,
-                accelerator,
-                pipeline_args,
-                epoch,
-                is_final_validation=True,
-                torch_dtype=weight_dtype,
-            )
+    #     images = []
+    #     if args.validation_prompt and args.num_validation_images > 0:
+    #         pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
+    #         images = log_validation(
+    #             pipeline,
+    #             args,
+    #             accelerator,
+    #             pipeline_args,
+    #             epoch,
+    #             is_final_validation=True,
+    #             torch_dtype=weight_dtype,
+    #         )
 
-        if args.push_to_hub:
-            save_model_card(
-                repo_id,
-                use_dora=args.use_dora,
-                images=images,
-                base_model=args.pretrained_model_name_or_path,
-                train_text_encoder=args.train_text_encoder,
-                instance_prompt=args.instance_prompt,
-                validation_prompt=args.validation_prompt,
-                repo_folder=args.output_dir,
-                vae_path=args.pretrained_vae_model_name_or_path,
-            )
-            upload_folder(
-                repo_id=repo_id,
-                folder_path=args.output_dir,
-                commit_message="End of training",
-                ignore_patterns=["step_*", "epoch_*"],
-            )
+    #     if args.push_to_hub:
+    #         save_model_card(
+    #             repo_id,
+    #             use_dora=args.use_dora,
+    #             images=images,
+    #             base_model=args.pretrained_model_name_or_path,
+    #             train_text_encoder=args.train_text_encoder,
+    #             instance_prompt=args.instance_prompt,
+    #             validation_prompt=args.validation_prompt,
+    #             repo_folder=args.output_dir,
+    #             vae_path=args.pretrained_vae_model_name_or_path,
+    #         )
+    #         upload_folder(
+    #             repo_id=repo_id,
+    #             folder_path=args.output_dir,
+    #             commit_message="End of training",
+    #             ignore_patterns=["step_*", "epoch_*"],
+    #         )
 
     accelerator.end_training()
 
+    #INFERENCE AFTER TRAINING
+    pipeline = StableDiffusionXLPipeline.from_pretrained(
+        args.pretrained_model_name_or_path,
+        vae=vae,
+        revision=args.revision,
+        variant=args.variant,
+        torch_dtype=weight_dtype,
+    )
 
+    pipeline.load_lora_weights(args.output_dir)
+    # run inference
+    val_prompt = [
+        'a {0} {1} in the jungle'.format(args.unique_token, args.class_token),
+        'a {0} {1} in the snow'.format(args.unique_token, args.class_token),
+        'a {0} {1} on the beach'.format(args.unique_token, args.class_token),
+        'a {0} {1} on a cobblestone street'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of pink fabric'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of a wooden floor'.format(args.unique_token, args.class_token),
+        'a {0} {1} with a city in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} with a mountain in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} with a blue house in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of a purple rug in a forest'.format(args.unique_token, args.class_token),
+        'a {0} {1} with a wheat field in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} with a tree and autumn leaves in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} with the Eiffel Tower in the background'.format(args.unique_token, args.class_token),
+        'a {0} {1} floating on top of water'.format(args.unique_token, args.class_token),
+        'a {0} {1} floating in an ocean of milk'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of green grass with sunflowers around it'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of a mirror'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of the sidewalk in a crowded street'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of a dirt road'.format(args.unique_token, args.class_token),
+        'a {0} {1} on top of a white rug'.format(args.unique_token, args.class_token),
+        'a red {0} {1}'.format(args.unique_token, args.class_token),
+        'a purple {0} {1}'.format(args.unique_token, args.class_token),
+        'a shiny {0} {1}'.format(args.unique_token, args.class_token),
+        'a wet {0} {1}'.format(args.unique_token, args.class_token),
+        'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
+        ]
+    images = []
+    if args.num_validation_images > 0:
+        for i, prompt in enumerate(val_prompt):
+            for j in range(args.num_validation_images):
+                torch.manual_seed(j*100)
+                image = pipeline(prompt, num_inference_steps=args.num_inference_steps).images[0]
+                image.save(os.path.join(args.output_dir, f"inference_{i+1}_{j+1}.png"))
+        
 if __name__ == "__main__":
     args = parse_args()
     main(args)
