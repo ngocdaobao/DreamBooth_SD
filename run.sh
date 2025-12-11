@@ -4,7 +4,7 @@
 
 python train_dreambooth_sdxl_lora.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
-  --instance_data_dir="/kaggle/input/instance_images" \
+  --instance_data_dir="dataset/backpack" \
   --class_data_dir="/kaggle/input/class_images" \
   --output_dir="/kaggle/working/dreambooth-model" \
   --instance_prompt="a sks backpack" \
