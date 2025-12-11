@@ -17,7 +17,6 @@ accelerate>=0.27.0
 bitsandbytes>=0.42.0  # For 8-bit Adam (optional but recommended)
 
 # HuggingFace Hub utilities
-huggingface-hub>=0.20.0
 
 # Additional utilities (usually pre-installed but listed for completeness)
 Pillow>=10.0.0
@@ -28,11 +27,6 @@ opencv-python>=4.8.0  # Image processing (often pre-installed)
 xformers>=0.0.23  # Memory-efficient attention (optional, for --enable_xformers_memory_efficient_attention)
 wandb>=0.16.0  # For logging (optional, if using --report_to wandb)
 tensorboard>=2.14.0  # For TensorBoard logging (usually pre-installed)
-
-# For Prodigy optimizer (if using --optimizer prodigy)
-prodigy-ai>=0.2.1
-transformers>=4.36.0
-safetensors>=0.3.1
 datasets
 tensorboard
 Pillow
