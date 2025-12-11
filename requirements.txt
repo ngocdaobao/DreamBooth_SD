@@ -46,5 +46,4 @@ tqdm
 protobuf
 deepspeed
 einops
-xformers
 opencv-python
