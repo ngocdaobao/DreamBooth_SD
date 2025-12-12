@@ -2085,7 +2085,7 @@ def main(args):
 
     clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
 
-    dino_model = timm.create_model("dino_vits16", pretrained=True)
+    dino_model = timm.create_model("vit_small_patch16_224_dino", pretrained=True)
     dino_preprocess = T.Compose([
         T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
         T.CenterCrop(224),
@@ -2098,7 +2098,7 @@ def main(args):
     dino_model.to(device='cuda')
 
 
-    valid_dir = os.path.join(f"{args.class_token}_final_generate")
+    valid_dir = os.path.join(f"{args.output_dir}/final_generate")
     os.makedirs(valid_dir, exist_ok=True)
     org_imgs = [Image.open(path) for path in args.instance_data_dir]
 
