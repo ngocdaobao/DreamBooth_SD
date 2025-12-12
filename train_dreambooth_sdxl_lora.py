@@ -2110,6 +2110,7 @@ def main(args):
         for i, prompt in enumerate(val_prompt):
             for j in range(args.num_validation_images):
                 torch.manual_seed(j*100)
+                pipeline.to("cuda")
                 image = pipeline(prompt, num_inference_steps=args.validation_epochs).images[0]
                 image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
                 if not isinstance(image, Image.Image):
