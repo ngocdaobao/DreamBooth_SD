@@ -14,12 +14,12 @@ python train_dreambooth_sdxl_lora.py \
   --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token}" \
-  --num_class_images=2 \
+  --num_class_images=200 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
   --resolution=1024 \
   --train_batch_size=1 \
-  --num_train_epochs=1 \
+  --num_train_epochs=500 \
   --learning_rate=1e-4 \
   --mixed_precision="fp16" \
   --with_prior_preservation \
