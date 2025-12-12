@@ -2039,64 +2039,68 @@ def main(args):
     #         )
 
     accelerator.end_training()
+    print("Training completed...")
 
-    #INFERENCE AFTER TRAINING
-    pipeline = StableDiffusionXLPipeline.from_pretrained(
-        args.pretrained_model_name_or_path,
-        vae=vae,
-        revision=args.revision,
-        variant=args.variant,
-        torch_dtype=weight_dtype,
-    )
+    # #INFERENCE AFTER TRAINING
+    # pipeline = StableDiffusionXLPipeline.from_pretrained(
+    #     args.pretrained_model_name_or_path,
+    #     vae=vae,
+    #     revision=args.revision,
+    #     variant=args.variant,
+    #     torch_dtype=weight_dtype,
+    # )
 
-    pipeline.load_lora_weights(args.output_dir)
-    # run inference
-    val_prompt = [
-        'a {0} {1} in the jungle'.format(args.unique_token, args.class_token),
-        'a {0} {1} in the snow'.format(args.unique_token, args.class_token),
-        'a {0} {1} on the beach'.format(args.unique_token, args.class_token),
-        'a {0} {1} on a cobblestone street'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of pink fabric'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of a wooden floor'.format(args.unique_token, args.class_token),
-        'a {0} {1} with a city in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} with a mountain in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} with a blue house in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of a purple rug in a forest'.format(args.unique_token, args.class_token),
-        'a {0} {1} with a wheat field in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} with a tree and autumn leaves in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} with the Eiffel Tower in the background'.format(args.unique_token, args.class_token),
-        'a {0} {1} floating on top of water'.format(args.unique_token, args.class_token),
-        'a {0} {1} floating in an ocean of milk'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of green grass with sunflowers around it'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of a mirror'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of the sidewalk in a crowded street'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of a dirt road'.format(args.unique_token, args.class_token),
-        'a {0} {1} on top of a white rug'.format(args.unique_token, args.class_token),
-        'a red {0} {1}'.format(args.unique_token, args.class_token),
-        'a purple {0} {1}'.format(args.unique_token, args.class_token),
-        'a shiny {0} {1}'.format(args.unique_token, args.class_token),
-        'a wet {0} {1}'.format(args.unique_token, args.class_token),
-        'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
-        ]
+    # pipeline.load_lora_weights(args.output_dir)
+    # # run inference
+    # val_prompt = [
+    #     'a {0} {1} in the jungle'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} in the snow'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on the beach'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on a cobblestone street'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of pink fabric'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a wooden floor'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a city in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a mountain in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a blue house in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a purple rug in a forest'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a wheat field in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a tree and autumn leaves in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with the Eiffel Tower in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} floating on top of water'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} floating in an ocean of milk'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of green grass with sunflowers around it'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a mirror'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of the sidewalk in a crowded street'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a dirt road'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a white rug'.format(args.unique_token, args.class_token),
+    #     'a red {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a purple {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a shiny {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a wet {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
+    #     ]
     
 
-    valid_dir = os.path.join(f"{args.output_dir}/final_generate")
-    os.makedirs(valid_dir, exist_ok=True)
-    org_imgs = []
-    for img in os.listdir(args.instance_data_dir):
-        img_path = f'{args.instance_data_dir}/{img}'
-        org_img = Image.open(img_path)
-        org_imgs.append(org_img)
+    # valid_dir = os.path.join(f"{args.output_dir}/final_generate")
+    # os.makedirs(valid_dir, exist_ok=True)
+    # org_imgs = []
+    # for img in os.listdir(args.instance_data_dir):
+    #     img_path = f'{args.instance_data_dir}/{img}'
+    #     org_img = Image.open(img_path)
+    #     org_imgs.append(org_img)
 
-    if args.num_validation_images > 0:
-        for i, prompt in enumerate(val_prompt):
-            for j in range(args.num_validation_images):
-                torch.manual_seed(j*100)
-                pipeline.to("cuda")
-                image = pipeline(prompt, num_inference_steps=args.validation_epochs).images[0]
-                image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
+    # if args.num_validation_images > 0:
+    #     for i, prompt in enumerate(val_prompt):
+    #         for j in range(args.num_validation_images):
+    #             torch.manual_seed(j*100)
+    #             pipeline.to("cuda")
+    #             image = pipeline(prompt, num_inference_steps=args.validation_epochs).images[0]
+    #             image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
 
-    print("Inference finished...")
+    #             del image
+    #             torch.cuda.empty_cache()
+
+    # print("Inference finished...")
 
         
 if __name__ == "__main__":
