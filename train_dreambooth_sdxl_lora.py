@@ -2100,7 +2100,7 @@ def main(args):
 
     valid_dir = os.path.join(f"{args.output_dir}/final_generate")
     os.makedirs(valid_dir, exist_ok=True)
-    org_imgs = [Image.open(path) for path in args.instance_data_dir]
+    org_imgs = [Image.open(path) for path in os.listdir(args.instance_data_dir)]
 
     if args.num_validation_images > 0:
         for i, prompt in enumerate(val_prompt):
