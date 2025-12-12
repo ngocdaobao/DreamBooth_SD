@@ -1987,23 +1987,23 @@ def main(args):
 
         # Final inference
         # Load previous pipeline
-        vae = AutoencoderKL.from_pretrained(
-            vae_path,
-            subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
-            revision=args.revision,
-            variant=args.variant,
-            torch_dtype=weight_dtype,
-        )
-        pipeline = StableDiffusionXLPipeline.from_pretrained(
-            args.pretrained_model_name_or_path,
-            vae=vae,
-            revision=args.revision,
-            variant=args.variant,
-            torch_dtype=weight_dtype,
-        )
+        # vae = AutoencoderKL.from_pretrained(
+        #     vae_path,
+        #     subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
+        #     revision=args.revision,
+        #     variant=args.variant,
+        #     torch_dtype=weight_dtype,
+        # )
+        # pipeline = StableDiffusionXLPipeline.from_pretrained(
+        #     args.pretrained_model_name_or_path,
+        #     vae=vae,
+        #     revision=args.revision,
+        #     variant=args.variant,
+        #     torch_dtype=weight_dtype,
+        # )
 
-        # load attention processors
-        pipeline.load_lora_weights(args.output_dir)
+        # # load attention processors
+        # pipeline.load_lora_weights(args.output_dir)
 
         # run inference
     #     images = []
