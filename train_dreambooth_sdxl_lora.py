@@ -52,7 +52,7 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
-from metrics import im2im, im2prompt
+# from metrics import im2im, im2prompt
 
 import diffusers
 from diffusers import (
