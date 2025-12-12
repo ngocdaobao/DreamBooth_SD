@@ -31,9 +31,10 @@ import clip
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torchvision.models import vit_s_16, ViT_S_16_Weights
+
 import torch.utils.checkpoint
 import transformers
+from transformers import AutoImageProcessor, AutoModel
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
@@ -2084,8 +2085,8 @@ def main(args):
 
     clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
 
-    dino_model = vit_s_16(weights=ViT_S_16_Weights.IMAGENET1K_SWAG_E2E_V1)
-    dino_preprocess = ViT_S_16_Weights.IMAGENET1K_SWAG_E2E_V1.transforms()
+    dino_model = AutoModel.from_pretrained("facebook/dino-vits16")
+    dino_preprocess = AutoImageProcessor.from_pretrained("facebook/dino-vits16")
 
     clip_model.to(device='cuda')
     dino_model.to(device='cuda')
