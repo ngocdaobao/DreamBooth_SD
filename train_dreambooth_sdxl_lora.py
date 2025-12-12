@@ -2079,24 +2079,6 @@ def main(args):
         'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
         ]
     
-    clip_t=[]
-    clip_i=[]
-    dino=[]
-
-    clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
-
-    dino_model = timm.create_model("vit_small_patch16_224_dino", pretrained=True)
-    dino_preprocess = T.Compose([
-        T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
-        T.CenterCrop(224),
-        T.ToTensor(),
-        T.Normalize(mean=(0.5, 0.5, 0.5),
-                    std=(0.5, 0.5, 0.5)),
-    ])
-
-    clip_model.to(device='cuda')
-    dino_model.to(device='cuda')
-
 
     valid_dir = os.path.join(f"{args.output_dir}/final_generate")
     os.makedirs(valid_dir, exist_ok=True)
@@ -2113,25 +2095,8 @@ def main(args):
                 pipeline.to("cuda")
                 image = pipeline(prompt, num_inference_steps=args.validation_epochs).images[0]
                 image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
-                if not isinstance(image, Image.Image):
-                    image = Image.fromarray(image)
-
-                clip_t.append(im2prompt(prompt, image, clip_model, clip_preprocess, device='cuda'))
-
-                for org_img in org_imgs:
-                    clip_sim = im2im(org_img, image, clip_model, clip_preprocess, device='cuda')
-                    clip_i.append(clip_sim)
-                    dino_sim = im2im(org_img, image, dino_model, dino_preprocess, device='cuda')
-                    dino.append(dino_sim)
-
-    #Save ckpt and gen image in Google Drive 
-    # Save the model checkpoint
-    
 
     print("Inference finished...")
-    print(f"CLIP Text-Image Similarity: {sum(clip_t)/len(clip_t)}")
-    print(f"CLIP Image-Image Similarity: {sum(clip_i)/len(clip_i)}")
-    print(f"DINO Image-Image Similarity: {sum(dino)/len(dino)}")
 
         
 if __name__ == "__main__":
