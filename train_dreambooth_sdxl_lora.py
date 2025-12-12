@@ -26,7 +26,7 @@ import shutil
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
-import clip
+# import clip
 
 import numpy as np
 import torch
@@ -34,7 +34,7 @@ import torch.nn.functional as F
 from torchvision import transforms as T
 import torch.utils.checkpoint
 import transformers
-import timm
+# import timm
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
