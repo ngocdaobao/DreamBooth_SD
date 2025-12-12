@@ -378,7 +378,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--validation_epochs",
         type=int,
-        default=50,
+        default=40,
         help=(
             "Run dreambooth validation every X epochs. Dreambooth validation consists of running the prompt"
             " `args.validation_prompt` multiple times: `args.num_validation_images`."
