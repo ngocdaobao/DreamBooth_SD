@@ -2,16 +2,23 @@
 #   --num_train_epochs=500
 #   --num_class_images=200
 
+# Define variables
+class_token="backpack"
+unique_token="sks"
+
+# Build directory path using variables
+instance_dir="dataset/${class_token}"
+
 python train_dreambooth_sdxl_lora.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
-  --instance_data_dir="dataset/backpack" \
-  --class_data_dir="/kaggle/input/class_images" \
+  --instance_data_dir="$instance_dir" \
+  --class_data_dir="${class_token}_class_images" \
   --output_dir="/kaggle/working/dreambooth-model" \
-  --instance_prompt="a sks backpack" \
-  --class_prompt="a backpack" \
+  --instance_prompt="a ${unique_token} ${class_token}" \
+  --class_prompt="a ${class_token}" \
   --num_class_images=2 \
-  --class_token="backpack" \
-  --unique_token="sks" \
+  --class_token="${class_token}" \
+  --unique_token="${unique_token}" \
   --resolution=1024 \
   --train_batch_size=1 \
   --num_train_epochs=1 \

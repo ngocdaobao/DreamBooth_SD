@@ -2112,6 +2112,10 @@ def main(args):
                     dino_sim = im2im(org_img, image, dino_model, dino_preprocess, device='cuda')
                     dino += dino_sim
     
+    #Save ckpt and gen image in Google Drive 
+    # Save the model checkpoint
+    
+
     print("Inference finished...")
     print(f"CLIP Text-Image Similarity: {clip_t }")
     print(f"CLIP Image-Image Similarity: {clip_i}")
