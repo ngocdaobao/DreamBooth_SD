@@ -26,10 +26,12 @@ import shutil
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
+import clip
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torchvision.models import vit_s_16, ViT_S_16_Weights
 import torch.utils.checkpoint
 import transformers
 from accelerate import Accelerator
@@ -48,6 +50,8 @@ from torchvision import transforms
 from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
+
+from metrics import im2im, im2prompt
 
 import diffusers
 from diffusers import (
@@ -2073,13 +2077,46 @@ def main(args):
         'a wet {0} {1}'.format(args.unique_token, args.class_token),
         'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
         ]
-    images = []
+    
+    clip_t=0
+    clip_i=0
+    dino=0
+
+    clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
+
+    dino_model = vit_s_16(weights=ViT_S_16_Weights.IMAGENET1K_SWAG_E2E_V1)
+    dino_preprocess = ViT_S_16_Weights.IMAGENET1K_SWAG_E2E_V1.transforms()
+
+    clip_model.to(device='cuda')
+    dino_model.to(device='cuda')
+
+
+    valid_dir = os.path.join(f"{args.class_token}_final_generate")
+    os.makedirs(valid_dir, exist_ok=True)
+    org_imgs = [Image.open(path) for path in args.instance_data_dir]
+
     if args.num_validation_images > 0:
         for i, prompt in enumerate(val_prompt):
             for j in range(args.num_validation_images):
                 torch.manual_seed(j*100)
-                image = pipeline(prompt, num_inference_steps=args.num_inference_steps).images[0]
-                image.save(os.path.join(args.output_dir, f"inference_{i+1}_{j+1}.png"))
+                image = pipeline(prompt, num_inference_steps=args.validation_steps).images[0]
+                image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
+                if not isinstance(image, Image.Image):
+                    image = Image.fromarray(image)
+
+                clip_t += im2prompt(prompt, image, clip_model, clip_preprocess, device='cuda')
+
+                for org_img in org_imgs:
+                    clip_sim = im2im(org_img, image, clip_model, clip_preprocess, device='cuda')
+                    clip_i += clip_sim
+                    dino_sim = im2im(org_img, image, dino_model, dino_preprocess, device='cuda')
+                    dino += dino_sim
+    
+    print("Inference finished...")
+    print(f"CLIP Text-Image Similarity: {clip_t }")
+    print(f"CLIP Image-Image Similarity: {clip_i}")
+    print(f"DINO Image-Image Similarity: {dino}")
+                
         
 if __name__ == "__main__":
     args = parse_args()

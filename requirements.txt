@@ -16,17 +16,9 @@ accelerate>=0.27.0
 # Optimization utilities
 bitsandbytes>=0.42.0  # For 8-bit Adam (optional but recommended)
 
-# HuggingFace Hub utilities
-
-# Additional utilities (usually pre-installed but listed for completeness)
-Pillow>=10.0.0
 ftfy>=6.1.1  # For text cleaning in tokenizers
 opencv-python>=4.8.0  # Image processing (often pre-installed)
-
-# Optional: for advanced features
-xformers>=0.0.23  # Memory-efficient attention (optional, for --enable_xformers_memory_efficient_attention)
 wandb>=0.16.0  # For logging (optional, if using --report_to wandb)
-tensorboard>=2.14.0  # For TensorBoard logging (usually pre-installed)
 datasets
 tensorboard
 Pillow
@@ -40,4 +32,4 @@ tqdm
 protobuf
 deepspeed
 einops
-opencv-python
+
