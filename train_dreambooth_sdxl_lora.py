@@ -34,7 +34,7 @@ import torch.nn.functional as F
 
 import torch.utils.checkpoint
 import transformers
-from transformers import AutoImageProcessor, AutoModel
+import timm
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
@@ -2085,8 +2085,14 @@ def main(args):
 
     clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
 
-    dino_model = AutoModel.from_pretrained("facebook/dino-vits16")
-    dino_preprocess = AutoImageProcessor.from_pretrained("facebook/dino-vits16")
+    dino_model = timm.create_model("dino_vits16", pretrained=True)
+    dino_preprocess = T.Compose([
+        T.Resize(256, interpolation=T.InterpolationMode.BICUBIC),
+        T.CenterCrop(224),
+        T.ToTensor(),
+        T.Normalize(mean=(0.5, 0.5, 0.5),
+                    std=(0.5, 0.5, 0.5)),
+    ])
 
     clip_model.to(device='cuda')
     dino_model.to(device='cuda')
