@@ -2079,9 +2079,9 @@ def main(args):
         'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
         ]
     
-    clip_t=0
-    clip_i=0
-    dino=0
+    clip_t=[]
+    clip_i=[]
+    dino=[]
 
     clip_model, clip_preprocess = clip.load("ViT-B/32", device='cuda')
 
@@ -2115,23 +2115,23 @@ def main(args):
                 if not isinstance(image, Image.Image):
                     image = Image.fromarray(image)
 
-                clip_t += im2prompt(prompt, image, clip_model, clip_preprocess, device='cuda')
+                clip_t.append(im2prompt(prompt, image, clip_model, clip_preprocess, device='cuda'))
 
                 for org_img in org_imgs:
                     clip_sim = im2im(org_img, image, clip_model, clip_preprocess, device='cuda')
-                    clip_i += clip_sim
+                    clip_i.append(clip_sim)
                     dino_sim = im2im(org_img, image, dino_model, dino_preprocess, device='cuda')
-                    dino += dino_sim
-    
+                    dino.append(dino_sim)
+
     #Save ckpt and gen image in Google Drive 
     # Save the model checkpoint
     
 
     print("Inference finished...")
-    print(f"CLIP Text-Image Similarity: {clip_t }")
-    print(f"CLIP Image-Image Similarity: {clip_i}")
-    print(f"DINO Image-Image Similarity: {dino}")
-                
+    print(f"CLIP Text-Image Similarity: {sum(clip_t)/len(clip_t)}")
+    print(f"CLIP Image-Image Similarity: {sum(clip_i)/len(clip_i)}")
+    print(f"DINO Image-Image Similarity: {sum(dino)/len(dino)}")
+
         
 if __name__ == "__main__":
     args = parse_args()
