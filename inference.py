@@ -2,7 +2,7 @@ from diffusers import StableDiffusionXLPipeline
 import torch
 
 base_model = "stabilityai/stable-diffusion-xl-base-1.0"
-lora_path = "dog_dreambooth_model"
+lora_path = "dog_dreambooth_model/pytorch_lora_weights.safetensors"
 
 pipe = StableDiffusionXLPipeline.from_pretrained(
     base_model,
