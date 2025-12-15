@@ -44,8 +44,8 @@ lora_weight_path = "ckpt_for_infer_pose/teapot_dreambooth_model/teapot_dreamboot
 # =====================
 pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
-    # controlnet=controlnet,
     torch_dtype=torch.float16,
+    use_safetensors=True,
 )
 
 pipe.load_lora_weights(lora_weight_path)
@@ -54,10 +54,6 @@ pipe.to("cuda")
 # =====================
 # Inference
 # =====================
-result = pipe(
-    prompt="a sks teapot",
-    # control_image=pose_image,
-    num_inference_steps=40,
-).images[0]
+result = pipe('a sks teapot with the Eiffel Tower in the background', num_inference_steps=50).images[0]
 
 result.save("infer_pose_output.png")
