@@ -3,6 +3,7 @@ import torch
 from controlnet_aux import OpenposeDetector
 from diffusers import (
     StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLPipeline,
     ControlNetModel
 )
 from diffusers.utils import load_image
@@ -41,9 +42,9 @@ controlnet = ControlNetModel.from_pretrained(
 # =====================
 # SDXL ControlNet Pipeline
 # =====================
-pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
-    controlnet=controlnet,
+    # controlnet=controlnet,
     torch_dtype=torch.float16,
 )
 
