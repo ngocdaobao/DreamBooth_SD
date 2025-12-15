@@ -50,12 +50,13 @@ python train_dreambooth_sdxl_lora.py \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token}" \
   --num_class_images=50 \
+  --train_text_encoder \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
   --resolution=1024 \
   --train_batch_size=2 \
   --max_train_steps=1000 \
-  --learning_rate=5e-6 \
+  --learning_rate=5e-5 \
   --mixed_precision="fp16" \
   --with_prior_preservation \
   --prior_loss_weight=1.0 \
