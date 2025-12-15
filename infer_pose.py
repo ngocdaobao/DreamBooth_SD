@@ -17,27 +17,27 @@ gdown.download_folder(
     quiet=False
 )
 
-lora_weight_path = "ckpt_for_infer_pose/pytorch_lora_weights.safetensors"
-image_for_pose = "home-page-slider-3.jpg"
+lora_weight_path = "ckpt_for_infer_pose/dog2_dreambooth_model/dog2_dreambooth_model/pytorch_lora_weights.safetensors"
+# image_for_pose = "home-page-slider-3.jpg"
 
 # =====================
 # OpenPose (SDXL compatible)
 # =====================
-pose_detector = OpenposeDetector.from_pretrained(
-    "lllyasviel/ControlNet"
-)
+# pose_detector = OpenposeDetector.from_pretrained(
+#     "lllyasviel/ControlNet"
+# )
 
-image = load_image(image_for_pose)
-pose_image = pose_detector(image)
-pose_image = pose_image.resize((1024, 1024))
+# image = load_image(image_for_pose)
+# pose_image = pose_detector(image)
+# pose_image = pose_image.resize((1024, 1024))
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
 # =====================
-controlnet = ControlNetModel.from_pretrained(
-    "thibaud/controlnet-openpose-sdxl-1.0",
-    torch_dtype=torch.float16
-)
+# controlnet = ControlNetModel.from_pretrained(
+#     "thibaud/controlnet-openpose-sdxl-1.0",
+#     torch_dtype=torch.float16
+# )
 
 # =====================
 # SDXL ControlNet Pipeline
@@ -58,7 +58,7 @@ result = pipe(
     prompt="a sks dog",
     # control_image=pose_image,
     image=pose_image,
-    num_inference_steps=25,
+    num_inference_steps=40,
 ).images[0]
 
 result.save("infer_pose_output.png")
