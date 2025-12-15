@@ -17,7 +17,7 @@ gdown.download_folder(
     quiet=False
 )
 
-lora_weight_path = "ckpt_for_infer_pose/dog2_dreambooth_model/dog2_dreambooth_model/pytorch_lora_weights.safetensors"
+lora_weight_path = "ckpt_for_infer_pose/teapot_dreambooth_model/teapot_dreambooth_model/pytorch_lora_weights.safetensors"
 # image_for_pose = "home-page-slider-3.jpg"
 
 # =====================
@@ -55,7 +55,7 @@ pipe.to("cuda")
 # Inference
 # =====================
 result = pipe(
-    prompt="a sks dog",
+    prompt="a sks teapot in the jungle",
     # control_image=pose_image,
     num_inference_steps=40,
 ).images[0]
