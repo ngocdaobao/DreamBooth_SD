@@ -34,7 +34,7 @@ pose_image = pose_image.resize((1024, 1024))
 # ControlNet SDXL (QUAN TRỌNG)
 # =====================
 controlnet = ControlNetModel.from_pretrained(
-    "diffusers/controlnet-openpose-sdxl-1.0",
+    "thibaud/controlnet-openpose-sdxl-1.0",
     torch_dtype=torch.float16
 )
 
