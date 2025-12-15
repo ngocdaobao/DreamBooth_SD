@@ -57,7 +57,6 @@ pipe.to("cuda")
 result = pipe(
     prompt="a sks dog",
     # control_image=pose_image,
-    image=pose_image,
     num_inference_steps=40,
 ).images[0]
 
