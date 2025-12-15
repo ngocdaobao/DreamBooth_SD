@@ -23,7 +23,7 @@ image_for_pose = "home-page-slider-3.jpg"
 # OpenPose (SDXL compatible)
 # =====================
 pose_detector = OpenposeDetector.from_pretrained(
-    "lllyasviel/ControlNet", device="cuda"
+    "lllyasviel/ControlNet"
 )
 
 image = load_image(image_for_pose)
