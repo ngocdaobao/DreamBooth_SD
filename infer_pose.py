@@ -1,26 +1,46 @@
 import gdown
-from controlnet_aux import OpenposeDetector
-from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel
-from diffusers.utils import load_image
 import torch
+from controlnet_aux import OpenposeDetector
+from diffusers import (
+    StableDiffusionXLControlNetPipeline,
+    ControlNetModel
+)
+from diffusers.utils import load_image
 
+# =====================
+# Download LoRA
+# =====================
 gdown.download_folder(
-    "https://drive.google.com/drive/folders/1h50l1oRCSXTppUmm2oZXCOwvmT7BBAIV?usp=drive_link",
-    output = 'ckpt_for_infer_pose',
+    "https://drive.google.com/drive/folders/1h50l1oRCSXTppUmm2oZXCOwvmT7BBAIV",
+    output="ckpt_for_infer_pose",
     quiet=False
 )
 
 lora_weight_path = "ckpt_for_infer_pose/pytorch_lora_weights.safetensors"
 image_for_pose = "home-page-slider-3.jpg"
 
-pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
-controlnet = ControlNetModel.from_pretrained(
-    "lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16
+# =====================
+# OpenPose (SDXL compatible)
+# =====================
+pose_detector = OpenposeDetector.from_pretrained(
+    "lllyasviel/ControlNet", device="cuda"
 )
 
 image = load_image(image_for_pose)
-pose_condition = pose_detector(image)
+pose_image = pose_detector(image)
+pose_image = pose_image.resize((1024, 1024))
 
+# =====================
+# ControlNet SDXL (QUAN TRỌNG)
+# =====================
+controlnet = ControlNetModel.from_pretrained(
+    "diffusers/controlnet-openpose-sdxl-1.0",
+    torch_dtype=torch.float16
+)
+
+# =====================
+# SDXL ControlNet Pipeline
+# =====================
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
@@ -28,14 +48,18 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
 )
 
 pipe.load_lora_weights(lora_weight_path)
-
 pipe.to("cuda")
 
-image = pipe(
-    prompt="a sks dog in the beach",
-    image=pose_condition.resize((1024, 1024)),
-    num_inference_steps=40
+# =====================
+# Inference
+# =====================
+result = pipe(
+    prompt="a sks dog on the beach, full body",
+    negative_prompt="low quality, bad anatomy",
+    control_image=pose_image,
+    image=pose_image,
+    num_inference_steps=40,
+    guidance_scale=7.5,
 ).images[0]
 
-image.save("infer_pose_output.png")
-
+result.save("infer_pose_output.png")
