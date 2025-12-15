@@ -32,5 +32,6 @@ tqdm
 protobuf
 deepspeed
 einops
+controlnet_aux
 
 
