@@ -11,11 +11,11 @@ from diffusers.utils import load_image
 # =====================
 # Download LoRA
 # =====================
-gdown.download_folder(
-    "https://drive.google.com/drive/folders/1h50l1oRCSXTppUmm2oZXCOwvmT7BBAIV",
-    output="ckpt_for_infer_pose",
-    quiet=False
-)
+# gdown.download_folder(
+#     "https://drive.google.com/drive/folders/1h50l1oRCSXTppUmm2oZXCOwvmT7BBAIV",
+#     output="ckpt_for_infer_pose",
+#     quiet=False
+# )
 
 lora_weight_path = "ckpt_for_infer_pose/teapot_dreambooth_model/teapot_dreambooth_model/pytorch_lora_weights.safetensors"
 # image_for_pose = "home-page-slider-3.jpg"
