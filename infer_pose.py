@@ -1,6 +1,6 @@
 import gdown
 from controlnet_aux import OpenposeDetector
-from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel
 from diffusers.utils import load_image
 import torch
 
@@ -21,7 +21,7 @@ controlnet = ControlNetModel.from_pretrained(
 image = load_image(image_for_pose)
 pose_condition = pose_detector(image)
 
-pipe = StableDiffusionControlNetPipeline.from_pretrained(
+pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
     torch_dtype=torch.float16,
@@ -32,8 +32,8 @@ pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
 
 image = pipe(
-    "a sks dog in the beach",
-    pose_condition,
+    prompt="a sks dog in the beach",
+    image=pose_condition.resize((1024, 1024)),
     num_inference_steps=40
 ).images[0]
 
