@@ -54,12 +54,10 @@ pipe.to("cuda")
 # Inference
 # =====================
 result = pipe(
-    prompt="a sks dog on the beach, full body",
-    negative_prompt="low quality, bad anatomy",
+    prompt="a sks dog",
     control_image=pose_image,
     image=pose_image,
-    num_inference_steps=40,
-    guidance_scale=7.5,
+    num_inference_steps=50,
 ).images[0]
 
 result.save("infer_pose_output.png")
