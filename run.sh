@@ -55,7 +55,7 @@ python train_dreambooth_sdxl_lora.py \
   --resolution=1024 \
   --train_batch_size=2 \
   --max_train_steps=600 \
-  --learning_rate=1e-4 \
+  --learning_rate=5e-6 \
   --mixed_precision="fp16" \
   --with_prior_preservation \
   --prior_loss_weight=1.0 \
