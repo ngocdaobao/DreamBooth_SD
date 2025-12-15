@@ -13,10 +13,8 @@ set -euo pipefail
 #   ./run.sh            # uses defaults
 
 # Defaults
-DEFAULT_CLASS="backpack"
 DEFAULT_UNIQUE="sks"
 
-class_token="$DEFAULT_CLASS"
 unique_token="$DEFAULT_UNIQUE"
 
 usage() {
@@ -49,8 +47,8 @@ python train_dreambooth_sdxl_lora.py \
   --instance_data_dir="dataset/${class_token}" \
   --class_data_dir="${class_token}_class_images" \
   --output_dir="${class_token}_dreambooth_model" \
-  --instance_prompt="a ${unique_token} dog" \
-  --class_prompt="a dog" \
+  --instance_prompt="a ${unique_token} ${class_token}" \
+  --class_prompt="a ${class_token}" \
   --num_class_images=200 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
