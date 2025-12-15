@@ -33,5 +33,7 @@ protobuf
 deepspeed
 einops
 controlnet_aux
+gdown
+
 
 
