@@ -1,6 +1,7 @@
 import gdown
 from controlnet_aux import OpenposeDetector
 from diffusers import StableDiffusionControlNetPipeline, ControlNetModel
+from diffusers.utils import load_image
 import torch
 
 gdown.download_folder(
@@ -17,7 +18,8 @@ controlnet = ControlNetModel.from_pretrained(
     "lllyasviel/sd-controlnet-openpose", torch_dtype=torch.float16
 )
 
-pose_condition = pose_detector(image_for_pose)
+image = load_image(image_for_pose)
+pose_condition = pose_detector(image)
 
 pipe = StableDiffusionControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
