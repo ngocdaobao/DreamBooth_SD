@@ -57,7 +57,7 @@ result = pipe(
     prompt="a sks dog",
     # control_image=pose_image,
     image=pose_image,
-    num_inference_steps=50,
+    num_inference_steps=25,
 ).images[0]
 
 result.save("infer_pose_output.png")
