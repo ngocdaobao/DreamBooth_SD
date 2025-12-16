@@ -57,8 +57,8 @@ pipe.to("cuda")
 # =====================
 # Inference
 # =====================
-result = pipe(prompt= 'a sks girl with the Eiffel Tower in the background', 
-              num_inference_steps=50, 
+result = pipe(prompt= 'a sks girl in the garden', 
+              num_inference_steps=40, 
               control_image=pose_image,
               image = pose_image).images[0]
 
