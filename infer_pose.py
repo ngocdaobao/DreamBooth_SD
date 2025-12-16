@@ -18,26 +18,26 @@ from diffusers.utils import load_image
 # )
 
 lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
-image_for_pose = "home-page-slider-3.jpg"
+image_for_pose = "ballerina.jpg"
 
 # =====================
 # OpenPose (SDXL compatible)
 # =====================
-# pose_detector = OpenposeDetector.from_pretrained(
-#     "lllyasviel/ControlNet"
-# )
+pose_detector = OpenposeDetector.from_pretrained(
+    "lllyasviel/ControlNet"
+)
 
-# image = load_image(image_for_pose)
-# pose_image = pose_detector(image)
-# pose_image = pose_image.resize((1024, 1024))
+image = load_image(image_for_pose)
+pose_image = pose_detector(image)
+pose_image = pose_image.resize((1024, 1024))
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
 # =====================
-# controlnet = ControlNetModel.from_pretrained(
-#     "thibaud/controlnet-openpose-sdxl-1.0",
-#     torch_dtype=torch.float16
-# )
+controlnet = ControlNetModel.from_pretrained(
+    "thibaud/controlnet-openpose-sdxl-1.0",
+    torch_dtype=torch.float16
+)
 
 # =====================
 # SDXL ControlNet Pipeline
@@ -54,6 +54,6 @@ pipe.to("cuda")
 # =====================
 # Inference
 # =====================
-result = pipe('a sks teapot with the Eiffel Tower in the background', num_inference_steps=50).images[0]
+result = pipe('a sks girl with the Eiffel Tower in the background', num_inference_steps=50).images[0]
 
 result.save("infer_pose_output.png")
