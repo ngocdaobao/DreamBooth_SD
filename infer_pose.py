@@ -17,8 +17,8 @@ from diffusers.utils import load_image
 #     quiet=False
 # )
 
-lora_weight_path = "ckpt_for_infer_pose/teapot_dreambooth_model/teapot_dreambooth_model/pytorch_lora_weights.safetensors"
-# image_for_pose = "home-page-slider-3.jpg"
+lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
+image_for_pose = "home-page-slider-3.jpg"
 
 # =====================
 # OpenPose (SDXL compatible)
