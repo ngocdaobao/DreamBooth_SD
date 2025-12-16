@@ -13,5 +13,5 @@ pipe.to("cuda")
 
 # Load LoRA
 pipe.load_lora_weights(lora_path)
-image = pipe('a sks dog in the beach', num_inference_steps=40).images[0]
+image = pipe('a sks dog in the ', num_inference_steps=40).images[0]
 image.save("inference_output.png")
