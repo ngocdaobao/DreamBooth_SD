@@ -63,7 +63,7 @@ result = pipe(prompt= 'a sks girl in the garden',
               image = pose_image,
               controlnet_conditioning_scale=0.8,
               control_guidance_start=0.8,
-              control_guidance_end=0.9            
+              control_guidance_end=1            
               ).images[0]
 
 result.save("infer_pose_output.png")
