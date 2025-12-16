@@ -1302,8 +1302,7 @@ def main(args):
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
                 text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
-                text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
-                controlnet_lora_layers=None,
+                text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save
             )
 
     def load_model_hook(models, input_dir):
