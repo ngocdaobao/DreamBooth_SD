@@ -1692,10 +1692,6 @@ def main(args):
             T.ToTensor(),   # converts PIL → Tensor in [0,1]
         ])
         pose = pose_transform(pose).unsqueeze(0)
-        pose = pose.to(
-            device=noisy_model_input.device,
-            dtype=noisy_model_input.dtype,   # 👈 THIS LINE FIXES IT
-        )
         poses.append(pose)
     
 
@@ -1796,7 +1792,7 @@ def main(args):
                     down_res, mid_res = controlnet(
                         noisy_model_input,
                         timesteps,
-                        controlnet_cond=pose,
+                        controlnet_cond=pose.to(device=noisy_model_input.device,dtype=noisy_model_input.dtype,),
                         encoder_hidden_states=prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
                         return_dict=False,
