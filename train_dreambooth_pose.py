@@ -1159,10 +1159,9 @@ def main(args):
     )
 
     controlnet = ControlNetModel.from_pretrained(
-        "thibault/controlnet-sdxl-pose",
+        "thibaud/controlnet-openpose-sdxl-1.0",
         torch_dtype=torch.float16
     )
-
 
     latents_mean = latents_std = None
     if hasattr(vae.config, "latents_mean") and vae.config.latents_mean is not None:
