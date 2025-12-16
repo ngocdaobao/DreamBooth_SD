@@ -64,6 +64,7 @@ from diffusers import (
     StableDiffusionXLControlNetPipeline,
     StableDiffusionXLPipeline,
     UNet2DConditionModel,
+    ControlNetModel,
 )
 from diffusers.loaders import StableDiffusionLoraLoaderMixin
 from diffusers.optimization import get_scheduler
@@ -1155,6 +1156,13 @@ def main(args):
         revision=args.revision,
         variant=args.variant,
     )
+
+    controlnet = ControlNetModel.from_pretrained(
+        "lllyasviel/sd-controlnet-openpose",
+        torch_dtype=torch.float16
+    )
+
+
     latents_mean = latents_std = None
     if hasattr(vae.config, "latents_mean") and vae.config.latents_mean is not None:
         latents_mean = torch.tensor(vae.config.latents_mean).view(1, 4, 1, 1)
@@ -1170,6 +1178,7 @@ def main(args):
     text_encoder_one.requires_grad_(False)
     text_encoder_two.requires_grad_(False)
     unet.requires_grad_(False)
+    controlnet.requires_grad_(False)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
@@ -1193,6 +1202,9 @@ def main(args):
 
     text_encoder_one.to(accelerator.device, dtype=weight_dtype)
     text_encoder_two.to(accelerator.device, dtype=weight_dtype)
+
+    controlnet.to(accelerator.device, dtype=weight_dtype)
+    controlnet.config.global_pool_conditions = True
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -1286,17 +1298,19 @@ def main(args):
                 # make sure to pop weight so that corresponding model is not saved again
                 weights.pop()
 
-            StableDiffusionXLPipeline.save_lora_weights(
+            StableDiffusionXLControlNetPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
                 text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
                 text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
+                controlnet_lora_layers=None,
             )
 
     def load_model_hook(models, input_dir):
         unet_ = None
         text_encoder_one_ = None
         text_encoder_two_ = None
+        controlnet_ = None
 
         while len(models) > 0:
             model = models.pop()
@@ -1307,6 +1321,8 @@ def main(args):
                 text_encoder_one_ = model
             elif isinstance(model, type(unwrap_model(text_encoder_two))):
                 text_encoder_two_ = model
+            elif isinstance(model, type(unwrap_model(controlnet))):
+                controlnet_ = model
             else:
                 raise ValueError(f"unexpected save model: {model.__class__}")
 
@@ -1665,6 +1681,15 @@ def main(args):
             sigma = sigma.unsqueeze(-1)
         return sigma
 
+    #Loading pose conditions
+    pose_path = 'poses'
+    poses = []
+    for img in os.listdir(pose_path):
+        pose = load_image(os.path.join(pose_path, img))
+        pose = pose.resize((1024,1024))
+        poses.append(pose)
+    
+
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
         if args.train_text_encoder:
@@ -1747,6 +1772,16 @@ def main(args):
                 else:
                     elems_to_repeat_text_embeds = 1
 
+                #ControlNet forward with a random pose from poses
+                pose = random.choice(poses)
+                down_res, mid_res = controlnet(
+                    noisu_model_input,
+                    timesteps,
+                    controlnet_cond=preprocess_pose_image(pose).to(accelerator.device, dtype=weight_dtype),
+                    return_dict=False,
+                )
+            
+
                 # Predict the noise residual
                 if not args.train_text_encoder:
                     unet_added_conditions = {
@@ -1759,6 +1794,8 @@ def main(args):
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
+                        down_block_additional_residuals=down_res,
+                        mid_block_additional_residual=mid_res,
                         return_dict=False,
                     )[0]
                 else:
