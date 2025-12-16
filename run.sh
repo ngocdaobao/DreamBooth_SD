@@ -49,7 +49,7 @@ python train_dreambooth_sdxl_lora.py \
   --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token}" \
-  --num_class_images=50 \
+  --num_class_images=10 \
   --train_text_encoder \
   --with_prior_preservation \
   --class_token="${class_token}" \
