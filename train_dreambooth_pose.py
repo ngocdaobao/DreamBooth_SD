@@ -77,6 +77,7 @@ from diffusers.utils import (
     convert_unet_state_dict_to_peft,
     is_peft_version,
     is_wandb_available,
+    load_image,
 )
 from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
 from diffusers.utils.import_utils import is_xformers_available
@@ -1158,7 +1159,7 @@ def main(args):
     )
 
     controlnet = ControlNetModel.from_pretrained(
-        "lllyasviel/sd-controlnet-openpose",
+        "thibault/controlnet-sdxl-pose",
         torch_dtype=torch.float16
     )
 
