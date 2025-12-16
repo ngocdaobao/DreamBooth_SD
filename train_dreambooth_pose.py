@@ -1692,6 +1692,10 @@ def main(args):
             T.ToTensor(),   # converts PIL → Tensor in [0,1]
         ])
         pose = pose_transform(pose).unsqueeze(0)
+        pose = pose.to(
+            device=noisy_model_input.device,
+            dtype=noisy_model_input.dtype,   # 👈 THIS LINE FIXES IT
+        )
         poses.append(pose)
     
 
