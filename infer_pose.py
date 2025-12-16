@@ -18,13 +18,9 @@ from PIL import Image
 #     quiet=False
 # )
 
-<<<<<<< HEAD
-# lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
-image_for_pose = "pexels-mikhail-nilov-6706847.jpg"
-=======
 lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
 image_for_pose = "ballerina.jpg"
->>>>>>> 18227c9bc39e87c4eed88bd048132082e9d20b9e
+
 
 # =====================
 # OpenPose (SDXL compatible)

@@ -26,18 +26,22 @@ import shutil
 import warnings
 from contextlib import nullcontext
 from pathlib import Path
+# import clip
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torchvision import transforms as T
 import torch.utils.checkpoint
 import transformers
+# import timm
 from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import DistributedDataParallelKwargs, ProjectConfiguration, set_seed
 from huggingface_hub import create_repo, hf_hub_download, upload_folder
 from huggingface_hub.utils import insecure_hashlib
 from packaging import version
+from peft import LoraConfig, set_peft_model_state_dict
 from peft.utils import get_peft_model_state_dict
 from PIL import Image
 from PIL.ImageOps import exif_transpose
@@ -48,6 +52,8 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
+# from metrics import im2im, im2prompt
+
 import diffusers
 from diffusers import (
     AutoencoderKL,
@@ -55,9 +61,11 @@ from diffusers import (
     DPMSolverMultistepScheduler,
     EDMEulerScheduler,
     EulerDiscreteScheduler,
+    StableDiffusionXLControlNetPipeline,
     StableDiffusionXLPipeline,
     UNet2DConditionModel,
 )
+from diffusers.loaders import StableDiffusionLoraLoaderMixin
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import _set_state_dict_into_text_encoder, cast_training_params, compute_snr
 from diffusers.utils import (
@@ -260,6 +268,8 @@ def import_model_class_from_model_name_or_path(
 
 def parse_args(input_args=None):
     parser = argparse.ArgumentParser(description="Simple example of a training script.")
+    parser.add_argument("--unique_token", type=str, default='sks')
+    parser.add_argument("--class_token", type=str, default=None)
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
@@ -357,7 +367,8 @@ def parse_args(input_args=None):
         "--validation_prompt",
         type=str,
         default=None,
-        help="A prompt that is used during validation to verify that the model is learning.",
+        action="append",
+        help="Prompt(s) to use during validation. Can be specified multiple times for multiple prompts.",
     )
     parser.add_argument(
         "--num_validation_images",
@@ -368,7 +379,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--validation_epochs",
         type=int,
-        default=50,
+        default=45,
         help=(
             "Run dreambooth validation every X epochs. Dreambooth validation consists of running the prompt"
             " `args.validation_prompt` multiple times: `args.num_validation_images`."
@@ -390,7 +401,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--num_class_images",
         type=int,
-        default=200,
+        default=100,
         help=(
             "Minimal class images for prior preservation loss. If there are not enough images already present in"
             " class_data_dir, additional images will be sampled with class_prompt."
@@ -399,7 +410,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="dreambooth-model",
+        default="lora-dreambooth-model",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument(
@@ -652,7 +663,14 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--enable_xformers_memory_efficient_attention", action="store_true", help="Whether or not to use xformers."
     )
+    parser.add_argument(
+        "--rank",
+        type=int,
+        default=4,
+        help=("The dimension of the LoRA update matrices."),
+    )
 
+    parser.add_argument("--lora_dropout", type=float, default=0.0, help="Dropout probability for LoRA layers")
 
     parser.add_argument(
         "--use_dora",
@@ -1027,6 +1045,8 @@ def main(args):
 
     # Generate class images if prior preservation is enabled.
     if args.with_prior_preservation:
+        if not os.path.exists(args.class_data_dir):
+            os.makedirs(args.class_data_dir)
         class_images_dir = Path(args.class_data_dir)
         if not class_images_dir.exists():
             class_images_dir.mkdir(parents=True)
@@ -1145,11 +1165,11 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
 
-    # We train the full UNet and text encoders (no LoRA)
+    # We only train the additional adapter LoRA layers
     vae.requires_grad_(False)
-    unet.requires_grad_(True)
-    text_encoder_one.requires_grad_(True)
-    text_encoder_two.requires_grad_(True)
+    text_encoder_one.requires_grad_(False)
+    text_encoder_two.requires_grad_(False)
+    unet.requires_grad_(False)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
@@ -1166,13 +1186,13 @@ def main(args):
         )
 
     # Move unet, vae and text_encoder to device and cast to weight_dtype
-    unet.to(accelerator.device, dtype=torch.float32)
+    unet.to(accelerator.device, dtype=weight_dtype)
 
     # The VAE is always in float32 to avoid NaN losses.
     vae.to(accelerator.device, dtype=torch.float32)
 
-    text_encoder_one.to(accelerator.device, dtype=torch.float32)
-    text_encoder_two.to(accelerator.device, dtype=torch.float32)
+    text_encoder_one.to(accelerator.device, dtype=weight_dtype)
+    text_encoder_two.to(accelerator.device, dtype=weight_dtype)
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -1194,8 +1214,46 @@ def main(args):
             text_encoder_one.gradient_checkpointing_enable()
             text_encoder_two.gradient_checkpointing_enable()
 
+    def get_lora_config(rank, dropout, use_dora, target_modules):
+        base_config = {
+            "r": rank,
+            "lora_alpha": rank,
+            "lora_dropout": dropout,
+            "init_lora_weights": "gaussian",
+            "target_modules": target_modules,
+        }
+        if use_dora:
+            if is_peft_version("<", "0.9.0"):
+                raise ValueError(
+                    "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
+                )
+            else:
+                base_config["use_dora"] = True
+
+        return LoraConfig(**base_config)
+
+    # now we will add new LoRA weights to the attention layers
+    unet_target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
+    unet_lora_config = get_lora_config(
+        rank=args.rank,
+        dropout=args.lora_dropout,
+        use_dora=args.use_dora,
+        target_modules=unet_target_modules,
+    )
+    unet.add_adapter(unet_lora_config)
+
     # The text encoder comes from 🤗 transformers, so we cannot directly modify it.
     # So, instead, we monkey-patch the forward calls of its attention-blocks.
+    if args.train_text_encoder:
+        text_target_modules = ["q_proj", "k_proj", "v_proj", "out_proj"]
+        text_lora_config = get_lora_config(
+            rank=args.rank,
+            dropout=args.lora_dropout,
+            use_dora=args.use_dora,
+            target_modules=text_target_modules,
+        )
+        text_encoder_one.add_adapter(text_lora_config)
+        text_encoder_two.add_adapter(text_lora_config)
 
     def unwrap_model(model):
         model = accelerator.unwrap_model(model)
@@ -1205,36 +1263,84 @@ def main(args):
     # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
     def save_model_hook(models, weights, output_dir):
         if accelerator.is_main_process:
+            # there are only two options here. Either are just the unet attn processor layers
+            # or there are the unet and text encoder atten layers
+            unet_lora_layers_to_save = None
+            text_encoder_one_lora_layers_to_save = None
+            text_encoder_two_lora_layers_to_save = None
+
             for model in models:
                 if isinstance(model, type(unwrap_model(unet))):
-                    model.save_pretrained(os.path.join(output_dir, "unet"))
+                    unet_lora_layers_to_save = convert_state_dict_to_diffusers(get_peft_model_state_dict(model))
                 elif isinstance(model, type(unwrap_model(text_encoder_one))):
-                    model.save_pretrained(os.path.join(output_dir, "text_encoder"))
+                    text_encoder_one_lora_layers_to_save = convert_state_dict_to_diffusers(
+                        get_peft_model_state_dict(model)
+                    )
                 elif isinstance(model, type(unwrap_model(text_encoder_two))):
-                    model.save_pretrained(os.path.join(output_dir, "text_encoder_2"))
+                    text_encoder_two_lora_layers_to_save = convert_state_dict_to_diffusers(
+                        get_peft_model_state_dict(model)
+                    )
                 else:
                     raise ValueError(f"unexpected save model: {model.__class__}")
 
+                # make sure to pop weight so that corresponding model is not saved again
                 weights.pop()
 
+            StableDiffusionXLPipeline.save_lora_weights(
+                output_dir,
+                unet_lora_layers=unet_lora_layers_to_save,
+                text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
+                text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save,
+            )
+
     def load_model_hook(models, input_dir):
+        unet_ = None
+        text_encoder_one_ = None
+        text_encoder_two_ = None
+
         while len(models) > 0:
             model = models.pop()
+
             if isinstance(model, type(unwrap_model(unet))):
-                load_model = UNet2DConditionModel.from_pretrained(input_dir, subfolder="unet")
-                model.register_to_config(**load_model.config)
-                model.load_state_dict(load_model.state_dict())
+                unet_ = model
             elif isinstance(model, type(unwrap_model(text_encoder_one))):
-                load_model = text_encoder_cls_one.from_pretrained(input_dir, subfolder="text_encoder")
-                model.config = load_model.config
-                model.load_state_dict(load_model.state_dict())
+                text_encoder_one_ = model
             elif isinstance(model, type(unwrap_model(text_encoder_two))):
-                load_model = text_encoder_cls_two.from_pretrained(input_dir, subfolder="text_encoder_2")
-                model.config = load_model.config
-                model.load_state_dict(load_model.state_dict())
+                text_encoder_two_ = model
             else:
                 raise ValueError(f"unexpected save model: {model.__class__}")
-            del load_model
+
+        lora_state_dict, network_alphas = StableDiffusionLoraLoaderMixin.lora_state_dict(input_dir)
+
+        unet_state_dict = {f"{k.replace('unet.', '')}": v for k, v in lora_state_dict.items() if k.startswith("unet.")}
+        unet_state_dict = convert_unet_state_dict_to_peft(unet_state_dict)
+        incompatible_keys = set_peft_model_state_dict(unet_, unet_state_dict, adapter_name="default")
+        if incompatible_keys is not None:
+            # check only for unexpected keys
+            unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+            if unexpected_keys:
+                logger.warning(
+                    f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
+                    f" {unexpected_keys}. "
+                )
+
+        if args.train_text_encoder:
+            # Do we need to call `scale_lora_layers()` here?
+            _set_state_dict_into_text_encoder(lora_state_dict, prefix="text_encoder.", text_encoder=text_encoder_one_)
+
+            _set_state_dict_into_text_encoder(
+                lora_state_dict, prefix="text_encoder_2.", text_encoder=text_encoder_two_
+            )
+
+        # Make sure the trainable params are in float32. This is again needed since the base models
+        # are in `weight_dtype`. More details:
+        # https://github.com/huggingface/diffusers/pull/6514#discussion_r1449796804
+        if args.mixed_precision == "fp16":
+            models = [unet_]
+            if args.train_text_encoder:
+                models.extend([text_encoder_one_, text_encoder_two_])
+            # only upcast trainable parameters (LoRA) into fp32
+            cast_training_params(models)
 
     accelerator.register_save_state_pre_hook(save_model_hook)
     accelerator.register_load_state_pre_hook(load_model_hook)
@@ -1848,80 +1954,156 @@ def main(args):
                     torch_dtype=weight_dtype,
                 )
 
-    # Save the fine-tuned models
+    # Save the lora layers
     accelerator.wait_for_everyone()
     if accelerator.is_main_process:
         unet = unwrap_model(unet)
-        unet.save_pretrained(os.path.join(args.output_dir, "unet"))
+        unet = unet.to(torch.float32)
+        unet_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
 
         if args.train_text_encoder:
             text_encoder_one = unwrap_model(text_encoder_one)
-            text_encoder_one.save_pretrained(os.path.join(args.output_dir, "text_encoder"))
+            text_encoder_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_one.to(torch.float32))
+            )
             text_encoder_two = unwrap_model(text_encoder_two)
-            text_encoder_two.save_pretrained(os.path.join(args.output_dir, "text_encoder_2"))
+            text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_two.to(torch.float32))
+            )
+        else:
+            text_encoder_lora_layers = None
+            text_encoder_2_lora_layers = None
+
+        StableDiffusionXLPipeline.save_lora_weights(
+            save_directory=args.output_dir,
+            unet_lora_layers=unet_lora_layers,
+            text_encoder_lora_layers=text_encoder_lora_layers,
+            text_encoder_2_lora_layers=text_encoder_2_lora_layers,
+        )
+        if args.output_kohya_format:
+            lora_state_dict = load_file(f"{args.output_dir}/pytorch_lora_weights.safetensors")
+            peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
+            kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
+            save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
 
         # Final inference
         # Load previous pipeline
-        vae = AutoencoderKL.from_pretrained(
-            vae_path,
-            subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
-            revision=args.revision,
-            variant=args.variant,
-            torch_dtype=weight_dtype,
-        )
-        pipeline = StableDiffusionXLPipeline.from_pretrained(
-            args.pretrained_model_name_or_path,
-            vae=vae,
-            revision=args.revision,
-            variant=args.variant,
-            torch_dtype=weight_dtype,
-        )
+        # vae = AutoencoderKL.from_pretrained(
+        #     vae_path,
+        #     subfolder="vae" if args.pretrained_vae_model_name_or_path is None else None,
+        #     revision=args.revision,
+        #     variant=args.variant,
+        #     torch_dtype=weight_dtype,
+        # )
+        # pipeline = StableDiffusionXLPipeline.from_pretrained(
+        #     args.pretrained_model_name_or_path,
+        #     vae=vae,
+        #     revision=args.revision,
+        #     variant=args.variant,
+        #     torch_dtype=weight_dtype,
+        # )
 
-        # load fine-tuned models
-        unet_from_pretrained = UNet2DConditionModel.from_pretrained(os.path.join(args.output_dir, "unet"))
-        pipeline.unet = unet_from_pretrained
-        if args.train_text_encoder:
-            text_encoder_one_from_pretrained = text_encoder_cls_one.from_pretrained(os.path.join(args.output_dir, "text_encoder"))
-            text_encoder_two_from_pretrained = text_encoder_cls_two.from_pretrained(os.path.join(args.output_dir, "text_encoder_2"))
-            pipeline.text_encoder = text_encoder_one_from_pretrained
-            pipeline.text_encoder_2 = text_encoder_two_from_pretrained
+        # # load attention processors
+        # pipeline.load_lora_weights(args.output_dir)
 
         # run inference
-        images = []
-        if args.validation_prompt and args.num_validation_images > 0:
-            pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
-            images = log_validation(
-                pipeline,
-                args,
-                accelerator,
-                pipeline_args,
-                epoch,
-                is_final_validation=True,
-                torch_dtype=weight_dtype,
-            )
+    #     images = []
+    #     if args.validation_prompt and args.num_validation_images > 0:
+    #         pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
+    #         images = log_validation(
+    #             pipeline,
+    #             args,
+    #             accelerator,
+    #             pipeline_args,
+    #             epoch,
+    #             is_final_validation=True,
+    #             torch_dtype=weight_dtype,
+    #         )
 
-        if args.push_to_hub:
-            save_model_card(
-                repo_id,
-                use_dora=args.use_dora,
-                images=images,
-                base_model=args.pretrained_model_name_or_path,
-                train_text_encoder=args.train_text_encoder,
-                instance_prompt=args.instance_prompt,
-                validation_prompt=args.validation_prompt,
-                repo_folder=args.output_dir,
-                vae_path=args.pretrained_vae_model_name_or_path,
-            )
-            upload_folder(
-                repo_id=repo_id,
-                folder_path=args.output_dir,
-                commit_message="End of training",
-                ignore_patterns=["step_*", "epoch_*"],
-            )
+    #     if args.push_to_hub:
+    #         save_model_card(
+    #             repo_id,
+    #             use_dora=args.use_dora,
+    #             images=images,
+    #             base_model=args.pretrained_model_name_or_path,
+    #             train_text_encoder=args.train_text_encoder,
+    #             instance_prompt=args.instance_prompt,
+    #             validation_prompt=args.validation_prompt,
+    #             repo_folder=args.output_dir,
+    #             vae_path=args.pretrained_vae_model_name_or_path,
+    #         )
+    #         upload_folder(
+    #             repo_id=repo_id,
+    #             folder_path=args.output_dir,
+    #             commit_message="End of training",
+    #             ignore_patterns=["step_*", "epoch_*"],
+    #         )
 
     accelerator.end_training()
+    print("Training completed...")
 
+    # #INFERENCE AFTER TRAINING
+    # pipeline = StableDiffusionXLPipeline.from_pretrained(
+    #     args.pretrained_model_name_or_path,
+    #     vae=vae,
+    #     revision=args.revision,
+    #     variant=args.variant,
+    #     torch_dtype=weight_dtype,
+    # )
 
+    # pipeline.load_lora_weights(args.output_dir)
+    # # run inference
+    # val_prompt = [
+    #     'a {0} {1} in the jungle'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} in the snow'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on the beach'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on a cobblestone street'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of pink fabric'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a wooden floor'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a city in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a mountain in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a blue house in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a purple rug in a forest'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a wheat field in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with a tree and autumn leaves in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} with the Eiffel Tower in the background'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} floating on top of water'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} floating in an ocean of milk'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of green grass with sunflowers around it'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a mirror'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of the sidewalk in a crowded street'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a dirt road'.format(args.unique_token, args.class_token),
+    #     'a {0} {1} on top of a white rug'.format(args.unique_token, args.class_token),
+    #     'a red {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a purple {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a shiny {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a wet {0} {1}'.format(args.unique_token, args.class_token),
+    #     'a cube shaped {0} {1}'.format(args.unique_token, args.class_token)
+    #     ]
+    
+
+    # valid_dir = os.path.join(f"{args.output_dir}/final_generate")
+    # os.makedirs(valid_dir, exist_ok=True)
+    # org_imgs = []
+    # for img in os.listdir(args.instance_data_dir):
+    #     img_path = f'{args.instance_data_dir}/{img}'
+    #     org_img = Image.open(img_path)
+    #     org_imgs.append(org_img)
+
+    # if args.num_validation_images > 0:
+    #     for i, prompt in enumerate(val_prompt):
+    #         for j in range(args.num_validation_images):
+    #             torch.manual_seed(j*100)
+    #             pipeline.to("cuda")
+    #             image = pipeline(prompt, num_inference_steps=args.validation_epochs).images[0]
+    #             image.save(os.path.join(valid_dir, f"inference_{i+1}_{j+1}.png"))
+
+    #             del image
+    #             torch.cuda.empty_cache()
+
+    # print("Inference finished...")
+
+        
 if __name__ == "__main__":
     args = parse_args()
     main(args)
