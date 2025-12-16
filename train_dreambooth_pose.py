@@ -1771,15 +1771,6 @@ def main(args):
                     elems_to_repeat_text_embeds = bsz // 2 if args.with_prior_preservation else bsz
                 else:
                     elems_to_repeat_text_embeds = 1
-
-                #ControlNet forward with a random pose from poses
-                pose = random.choice(poses)
-                down_res, mid_res = controlnet(
-                    noisy_model_input,
-                    timesteps,
-                    controlnet_cond=pose,
-                    return_dict=False,
-                )
             
 
                 # Predict the noise residual
@@ -1788,7 +1779,19 @@ def main(args):
                         "time_ids": add_time_ids,
                         "text_embeds": unet_add_text_embeds.repeat(elems_to_repeat_text_embeds, 1),
                     }
+                    
+                    #ControlNet forward with a random pose from poses   
+
                     prompt_embeds_input = prompt_embeds.repeat(elems_to_repeat_text_embeds, 1, 1)
+                    pose = random.choice(poses)
+                    down_res, mid_res = controlnet(
+                        noisy_model_input,
+                        timesteps,
+                        controlnet_cond=pose,
+                        encoder_hidden_states=prompt_embeds_input,
+                        return_dict=False,
+                    )  
+
                     model_pred = unet(
                         inp_noisy_latents if args.do_edm_style_training else noisy_model_input,
                         timesteps,
