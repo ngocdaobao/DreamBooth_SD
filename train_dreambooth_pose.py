@@ -1687,6 +1687,11 @@ def main(args):
     for img in os.listdir(pose_path):
         pose = load_image(os.path.join(pose_path, img))
         pose = pose.resize((1024,1024))
+        pose_transform = T.Compose([
+            T.Resize((1024, 1024)),
+            T.ToTensor(),   # converts PIL → Tensor in [0,1]
+        ])
+        pose = pose_transform(pose).unsqueeze(0)
         poses.append(pose)
     
 
