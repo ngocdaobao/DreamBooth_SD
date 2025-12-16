@@ -1775,9 +1775,9 @@ def main(args):
                 #ControlNet forward with a random pose from poses
                 pose = random.choice(poses)
                 down_res, mid_res = controlnet(
-                    noisu_model_input,
+                    noisy_model_input,
                     timesteps,
-                    controlnet_cond=preprocess_pose_image(pose).to(accelerator.device, dtype=weight_dtype),
+                    controlnet_cond=pose,
                     return_dict=False,
                 )
             
@@ -1815,6 +1815,8 @@ def main(args):
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
+                        down_block_additional_residuals=down_res,
+                        mid_block_additional_residual=mid_res,
                         return_dict=False,
                     )[0]
 
