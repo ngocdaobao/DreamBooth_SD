@@ -7,6 +7,7 @@ from diffusers import (
     ControlNetModel
 )
 from diffusers.utils import load_image
+from PIL import Image
 
 # =====================
 # Download LoRA
@@ -27,8 +28,11 @@ pose_detector = OpenposeDetector.from_pretrained(
     "lllyasviel/ControlNet"
 )
 
-image = load_image(image_for_pose)
-pose_image = pose_detector(image)
+# image = load_image(image_for_pose)
+# pose_image = pose_detector(image)
+# pose_image = pose_image.resize((1024, 1024))
+
+pose_image = Image.open("pose_image.png").convert("RGB")
 pose_image = pose_image.resize((1024, 1024))
 
 # =====================
