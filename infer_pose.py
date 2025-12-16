@@ -42,10 +42,11 @@ controlnet = ControlNetModel.from_pretrained(
 # =====================
 # SDXL ControlNet Pipeline
 # =====================
-pipe = StableDiffusionXLPipeline.from_pretrained(
+pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     torch_dtype=torch.float16,
     use_safetensors=True,
+    controlnet=controlnet,
 )
 
 pipe.load_lora_weights(lora_weight_path)
@@ -54,6 +55,6 @@ pipe.to("cuda")
 # =====================
 # Inference
 # =====================
-result = pipe('a sks girl with the Eiffel Tower in the background', num_inference_steps=50).images[0]
+result = pipe('a sks girl with the Eiffel Tower in the background', num_inference_steps=50, control_image=pose_image).images[0]
 
 result.save("infer_pose_output.png")
