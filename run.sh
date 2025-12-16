@@ -50,7 +50,6 @@ python train_dreambooth_sdxl_lora.py \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token}" \
   --num_class_images=10 \
-  --with_prior_preservation \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
   --resolution=1024 \
