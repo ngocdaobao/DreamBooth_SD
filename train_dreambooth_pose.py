@@ -1789,6 +1789,7 @@ def main(args):
                         timesteps,
                         controlnet_cond=pose,
                         encoder_hidden_states=prompt_embeds_input,
+                        added_cond_kwargs=unet_added_conditions,
                         return_dict=False,
                     )  
 
