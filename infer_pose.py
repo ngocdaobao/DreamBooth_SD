@@ -32,7 +32,7 @@ pose_detector = OpenposeDetector.from_pretrained(
 # pose_image = pose_detector(image)
 # pose_image = pose_image.resize((1024, 1024))
 
-pose_image = Image.open("pose_image.png").convert("RGB")
+pose_image = Image.open(image_for_pose).convert("RGB")
 pose_image = pose_image.resize((1024, 1024))
 
 # =====================
