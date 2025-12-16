@@ -51,7 +51,7 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     controlnet=controlnet,
 )
 
-pipe.load_lora_weights(lora_weight_path)
+# pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
 
 # =====================
