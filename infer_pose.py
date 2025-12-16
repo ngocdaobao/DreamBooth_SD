@@ -18,7 +18,7 @@ from PIL import Image
 #     quiet=False
 # )
 
-lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
+# lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
 image_for_pose = "pexels-mikhail-nilov-6706847.jpg"
 
 # =====================
@@ -31,7 +31,7 @@ pose_detector = OpenposeDetector.from_pretrained(
 image = load_image(image_for_pose)
 pose_image = pose_detector(image)
 pose_image = pose_image.resize((1024, 1024))
-pose_image.save("pose_image.png")
+pose_image.save("ballerina.png")
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
@@ -51,19 +51,16 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     controlnet=controlnet,
 )
 
-pipe.load_lora_weights(lora_weight_path)
+# pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
 
 # =====================
 # Inference
 # =====================
-result = pipe(prompt= 'a sks girl in the garden', 
+result = pipe(prompt= 'a girl in the garden', 
               num_inference_steps=40, 
               control_image=pose_image,
-              image = pose_image,
-              controlnet_conditioning_scale=5.0,
-              control_guidance_start=0.8,
-              control_guidance_end=1            
+              image = pose_image,          
               ).images[0]
 
 result.save("infer_pose_output.png")

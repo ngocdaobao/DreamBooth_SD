@@ -48,10 +48,11 @@ python train_dreambooth_sdxl_lora.py \
   --class_data_dir="${class_token}_class_images" \
   --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
-  --class_prompt="a ${class_token}" \
-  --num_class_images=10 \
+  --class_prompt="a ${class_token} posing" \
+  --num_class_images=20 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
+  --with_prior_preservation \
   --resolution=1024 \
   --train_batch_size=2 \
   --max_train_steps=1000 \
