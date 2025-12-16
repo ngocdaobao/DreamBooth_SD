@@ -61,8 +61,8 @@ result = pipe(prompt= 'a sks girl in the garden',
               num_inference_steps=40, 
               control_image=pose_image,
               image = pose_image,
-              controlnet_conditioning_scale=0.4,
-              control_guidance_start=0.2,
+              controlnet_conditioning_scale=0.6,
+              control_guidance_start=0.6,
               control_guidance_end=0.9            
               ).images[0]
 
