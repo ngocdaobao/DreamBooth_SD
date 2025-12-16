@@ -28,12 +28,10 @@ pose_detector = OpenposeDetector.from_pretrained(
     "lllyasviel/ControlNet"
 )
 
-# image = load_image(image_for_pose)
-# pose_image = pose_detector(image)
-# pose_image = pose_image.resize((1024, 1024))
-
-pose_image = Image.open(image_for_pose).convert("RGB")
+image = load_image(image_for_pose)
+pose_image = pose_detector(image)
 pose_image = pose_image.resize((1024, 1024))
+poseq_image.save("pose_image.png")
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
@@ -59,6 +57,9 @@ pipe.to("cuda")
 # =====================
 # Inference
 # =====================
-result = pipe('a sks girl with the Eiffel Tower in the background', num_inference_steps=50, control_image=pose_image).images[0]
+result = pipe(prompt= 'a sks girl with the Eiffel Tower in the background', 
+              num_inference_steps=50, 
+              control_image=pose_image,
+              image = pose_image).images[0]
 
 result.save("infer_pose_output.png")
