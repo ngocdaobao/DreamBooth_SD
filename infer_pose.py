@@ -33,7 +33,7 @@ image = load_image(image_for_pose)
 pose_image = pose_detector(image)
 # pose_image = pose_image.resize((1024, 1024))
 # pose_image.save("ballerina.png")
-pose_image = Image.open('poses/standing03.png')
+pose_image = Image.open('poses/standing_03.png')
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
