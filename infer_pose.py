@@ -48,7 +48,7 @@ pipe.to("cuda")
 result = pipe(
     prompt=prompt,
     image=pose_image,
-    adapter_conditioning_scale=0.2,
+    adapter_conditioning_scale=0,
     num_inference_steps=30,
     guidance_scale=7.5,
 ).images[0]
