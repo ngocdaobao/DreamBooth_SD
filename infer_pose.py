@@ -31,8 +31,9 @@ pose_detector = OpenposeDetector.from_pretrained(
 
 image = load_image(image_for_pose)
 pose_image = pose_detector(image)
-pose_image = pose_image.resize((1024, 1024))
-pose_image.save("ballerina.png")
+# pose_image = pose_image.resize((1024, 1024))
+# pose_image.save("ballerina.png")
+pose_image = Image.open('poses/dance01.png')
 
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
