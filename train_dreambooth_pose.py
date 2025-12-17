@@ -1187,7 +1187,6 @@ def main(args):
     text_encoder_two.requires_grad_(False)
     unet.requires_grad_(False)
     # controlnet.requires_grad_(False)
-    adapter.requires_grad_(False)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
@@ -1963,30 +1962,31 @@ def main(args):
 
                 # --- Face Consistency Loss ---
                 # For each generated image, compute cosine similarity to the mean embedding of all original faces
-                lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
-                face_loss = 0.0
-                num_valid = 0
-                try:
-                    with torch.no_grad():
-                        gen_imgs = vae.decode(model_pred.float()).sample
-                    batch_size = gen_imgs.shape[0]
-                    for i in range(batch_size):
-                        gen_img = gen_imgs[i].detach().cpu().numpy()
-                        gen_img = np.transpose(gen_img, (1, 2, 0))  # CHW to HWC
-                        gen_img = (gen_img * 255).clip(0, 255).astype(np.uint8)
-                        gen_embs = face_encoder.get(gen_img)
-                        if len(gen_embs) == 0:
-                            continue
-                        gen_emb = gen_embs[0].embedding
-                        gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
-                        sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
-                        face_loss += (1 - sim)
-                except Exception as e:
-                    print(f"[Face Consistency] Error in face loss: {e}")
-                    face_loss = 0.0
+                # lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
+                # face_loss = 0.0
+                # num_valid = 0
+                # try:
+                #     with torch.no_grad():
+                #         gen_imgs = vae.decode(model_pred.float()).sample
+                #     batch_size = gen_imgs.shape[0]
+                #     for i in range(batch_size):
+                #         gen_img = gen_imgs[i].detach().cpu().numpy()
+                #         gen_img = np.transpose(gen_img, (1, 2, 0))  # CHW to HWC
+                #         gen_img = (gen_img * 255).clip(0, 255).astype(np.uint8)
+                #         gen_embs = face_encoder.get(gen_img)
+                #         if len(gen_embs) == 0:
+                #             continue
+                #         gen_emb = gen_embs[0].embedding
+                #         gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
+                #         sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
+                #         face_loss += (1 - sim)
+                # except Exception as e:
+                #     print(f"[Face Consistency] Error in face loss: {e}")
+                #     face_loss = 0.0
 
-                total_loss = loss + lambda_face * face_loss
-                accelerator.backward(total_loss)
+                # total_loss = loss + lambda_face * face_loss
+                # accelerator.backward(total_loss)
+                accelerator.backward(loss)
 
                 if accelerator.sync_gradients:
                     params_to_clip = (
