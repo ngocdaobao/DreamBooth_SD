@@ -31,9 +31,9 @@ result = pipe(
     num_inference_steps=40,
     guidance_scale=7.5,
 
-    controlnet_conditioning_scale=1.0,
+    controlnet_conditioning_scale=4.0,
     control_guidance_start=0.5,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("late_pose_08_output.png")
+result.save("late_pose_40_output.png")
