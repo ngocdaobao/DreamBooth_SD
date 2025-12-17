@@ -12,7 +12,7 @@ from PIL import Image
 lora_weight_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
 pose_image_path = "poses/standing_03.png"
 
-prompt = "a photo of girl standing on the beach"
+prompt = "a photo of girl on the beach"
 
 # =====================
 # Load pose image
@@ -48,7 +48,7 @@ pipe.to("cuda")
 result = pipe(
     prompt=prompt,
     image=pose_image,
-    adapter_conditioning_scale=0.4,
+    adapter_conditioning_scale=0.2,
     num_inference_steps=30,
     guidance_scale=7.5,
 ).images[0]
