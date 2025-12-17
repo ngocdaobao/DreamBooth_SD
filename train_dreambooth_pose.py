@@ -52,7 +52,7 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
-from insightface.model_zoo import get_model
+from insightface.app import FaceAnalysis
 
 # from metrics import im2im, im2prompt
 
