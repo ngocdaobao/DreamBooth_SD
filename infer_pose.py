@@ -7,7 +7,7 @@ import gdown
 
 link = "https://drive.google.com/file/d/1gNjI7LlcSdlJwa50Dw9p9o8wgJkfcrOH/view?usp=drive_link"
 
-lora_ckpt = gdown.download(link=link, quiet=False, fuzzy=True)
+lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained('thibault/controlnet-openpose-sdxl', torch_dtype=torch.float16)
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
