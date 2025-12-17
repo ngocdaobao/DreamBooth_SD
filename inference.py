@@ -16,6 +16,6 @@ pipe.to("cuda")
 # Load LoRA
 torch.manual_seed(2)
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
-image = pipe('a photo of sks girl in Paris street', #the head tilted forward about 10°, one arm extended forward at roughly 40° while the other is bent backward around 30°, one leg angled forward about 30° with a slight knee bend, and the other leg angled backward about 35° with a deeper knee bend.', 
+image = pipe('a photo of sks girl in Paris street. The sks girl pose is The head is tilted slightly forward with a small downward angle, both hands are raised above shoulder level with elbows bent outward at roughly 90° and forearms angled upward forming a wide V shape, one leg is straight and vertical supporting the body while the other leg is lifted with the knee bent about 90° and the lower leg extended backward, creating an overall asymmetrical, open pose shape.', 
              num_inference_steps=40).images[0]
 image.save("pose_prompt_output.png")
