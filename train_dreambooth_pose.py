@@ -1956,12 +1956,6 @@ def main(args):
                         gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
                         sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
                         face_loss += (1 - sim)
-                        num_valid += 1
-                    if num_valid > 0:
-                        face_loss = face_loss / num_valid
-                    else:
-                        face_loss = 0.0
-                        print("[Face Consistency] Warning: No valid faces found in batch.")
                 except Exception as e:
                     print(f"[Face Consistency] Error in face loss: {e}")
                     face_loss = 0.0
