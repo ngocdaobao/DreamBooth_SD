@@ -22,16 +22,16 @@ pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street'
-# negative_prompt = 'distorted face, NOT sks girl, blurred, low quality, ugly'
+negative_prompt = 'abnormal eyes, nose, face'
 torch.manual_seed(2)
 result = pipe(
     prompt=prompt,
-    # negative_prompt=negative_prompt,
+    negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
     guidance_scale=7.5,
 
-    controlnet_conditioning_scale=0.6,
+    controlnet_conditioning_scale=0.5,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
