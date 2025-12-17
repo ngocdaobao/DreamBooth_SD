@@ -67,6 +67,8 @@ from diffusers import (
     StableDiffusionXLPipeline,
     UNet2DConditionModel,
     ControlNetModel,
+    StableDiffusionXLAdapterPipeline,
+    T2IAdapter,
 )
 from diffusers.loaders import StableDiffusionLoraLoaderMixin
 from diffusers.optimization import get_scheduler
@@ -1160,10 +1162,14 @@ def main(args):
         variant=args.variant,
     )
 
-    controlnet = ControlNetModel.from_pretrained(
-        "thibaud/controlnet-openpose-sdxl-1.0",
-        torch_dtype=torch.float16
-    )
+    # controlnet = ControlNetModel.from_pretrained(
+    #     "thibaud/controlnet-openpose-sdxl-1.0",
+    #     torch_dtype=torch.float16
+    # )
+
+    adapter = T2IAdapter.from_pretrained(
+    "TencentARC/t2i-adapter-openpose-sdxl-1.0", torch_dtype=torch.float16
+    ).to("cuda")
 
     latents_mean = latents_std = None
     if hasattr(vae.config, "latents_mean") and vae.config.latents_mean is not None:
@@ -1180,7 +1186,7 @@ def main(args):
     text_encoder_one.requires_grad_(False)
     text_encoder_two.requires_grad_(False)
     unet.requires_grad_(False)
-    controlnet.requires_grad_(False)
+    # controlnet.requires_grad_(False)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
@@ -1205,8 +1211,8 @@ def main(args):
     text_encoder_one.to(accelerator.device, dtype=weight_dtype)
     text_encoder_two.to(accelerator.device, dtype=weight_dtype)
 
-    controlnet.to(accelerator.device, dtype=weight_dtype)
-    controlnet.config.global_pool_conditions = True
+    # controlnet.to(accelerator.device, dtype=weight_dtype)
+    # controlnet.config.global_pool_conditions = True
 
     if args.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -1300,7 +1306,7 @@ def main(args):
                 # make sure to pop weight so that corresponding model is not saved again
                 weights.pop()
 
-            StableDiffusionXLControlNetPipeline.save_lora_weights(
+            StableDiffusionXLAdapterPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
                 text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
@@ -1311,7 +1317,7 @@ def main(args):
         unet_ = None
         text_encoder_one_ = None
         text_encoder_two_ = None
-        controlnet_ = None
+        # controlnet_ = None
 
         while len(models) > 0:
             model = models.pop()
@@ -1322,8 +1328,8 @@ def main(args):
                 text_encoder_one_ = model
             elif isinstance(model, type(unwrap_model(text_encoder_two))):
                 text_encoder_two_ = model
-            elif isinstance(model, type(unwrap_model(controlnet))):
-                controlnet_ = model
+            # elif isinstance(model, type(unwrap_model(controlnet))):
+            #     controlnet_ = model
             else:
                 raise ValueError(f"unexpected save model: {model.__class__}")
 
@@ -1718,6 +1724,7 @@ def main(args):
     all_embs = np.stack(face_embeddings, axis=0)
     mean_emb = np.mean(all_embs, axis=0)
     mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
+    adapter = globals().get("adapter", None)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
@@ -1801,34 +1808,49 @@ def main(args):
                 else:
                     elems_to_repeat_text_embeds = 1
             
+                # Adapter conditioning: get adapter condition or set to None
+                adapter_condition = None
+                if 'adapter' in globals() and adapter is not None:
+                    # Example: use pose as adapter condition (customize as needed)
+                    try:
+                        pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
+                        adapter_condition = adapter(pose)
+                    except Exception as e:
+                        print(f"[Adapter] Failed to get adapter condition: {e}")
+                        adapter_condition = None
+                
 
                 # Predict the noise residual
                 if not args.train_text_encoder:
                     unet_added_conditions = {
                         "time_ids": add_time_ids,
                         "text_embeds": unet_add_text_embeds.repeat(elems_to_repeat_text_embeds, 1),
+   
                     }
                     
                     #ControlNet forward with a random pose from poses   
 
                     prompt_embeds_input = prompt_embeds.repeat(elems_to_repeat_text_embeds, 1, 1)
-                    pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
-                    down_res, mid_res = controlnet(
-                        noisy_model_input,
-                        timesteps,
-                        controlnet_cond=pose.to(device=noisy_model_input.device,dtype=noisy_model_input.dtype,),
-                        encoder_hidden_states=prompt_embeds_input,
-                        added_cond_kwargs=unet_added_conditions,
-                        return_dict=False,
-                    )  
+                    # pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
+                    # down_res, mid_res = controlnet(
+                    #     noisy_model_input,
+                    #     timesteps,
+                    #     controlnet_cond=pose.to(device=noisy_model_input.device, dtype=noisy_model_input.dtype),
+                    #     encoder_hidden_states=prompt_embeds_input,
+                    #     added_cond_kwargs=unet_added_conditions,
+                    #     return_dict=False,
+                    #     controlnet_guidance_start=0.0,
+                    #     controlnet_guidance_end=0.6,
+                    # )
 
                     model_pred = unet(
                         inp_noisy_latents if args.do_edm_style_training else noisy_model_input,
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
-                        down_block_additional_residuals=down_res,
-                        mid_block_additional_residual=mid_res,
+                        # down_block_additional_residuals=down_res,
+                        # mid_block_additional_residual=mid_res,
+
                         return_dict=False,
                     )[0]
                 else:
@@ -1848,8 +1870,8 @@ def main(args):
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
-                        down_block_additional_residuals=down_res,
-                        mid_block_additional_residual=mid_res,
+                        # down_block_additional_residuals=down_res,
+                        # mid_block_additional_residual=mid_res,
                         return_dict=False,
                     )[0]
 
@@ -1940,7 +1962,7 @@ def main(args):
 
                 # --- Face Consistency Loss ---
                 # For each generated image, compute cosine similarity to the mean embedding of all original faces
-                lambda_face = 1  # Weight for face consistency loss (tune as needed)
+                lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
                 face_loss = 0.0
                 num_valid = 0
                 try:
