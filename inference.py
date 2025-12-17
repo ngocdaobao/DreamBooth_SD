@@ -1,8 +1,10 @@
 from diffusers import StableDiffusionXLPipeline
 import torch
+import gdown
 
 base_model = "stabilityai/stable-diffusion-xl-base-1.0"
-lora_path = "girl_dreambooth_model/pytorch_lora_weights.safetensors"
+link = "https://drive.google.com/file/d/1gNjI7LlcSdlJwa50Dw9p9o8wgJkfcrOH/view?usp=drive_link"
+lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 
 pipe = StableDiffusionXLPipeline.from_pretrained(
     base_model,
@@ -12,6 +14,7 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 pipe.to("cuda")
 
 # Load LoRA
-pipe.load_lora_weights(lora_path)
+torch.manual_seed(42)
+pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
 image = pipe('a sks girl in the mountain', num_inference_steps=40).images[0]
 image.save("inference_output.png")
