@@ -18,7 +18,7 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
 )
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
 pipe.to('cuda')
-pose = 'poses/standing_03.png'
+pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street'
