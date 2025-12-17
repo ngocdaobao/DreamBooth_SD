@@ -34,6 +34,7 @@ deepspeed
 einops
 controlnet_aux
 gdown
+insightface
 
 
 
