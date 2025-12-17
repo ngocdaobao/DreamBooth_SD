@@ -36,4 +36,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("late_pose_06_00_output.png")
+result.save("pose_prompt_output.png")
