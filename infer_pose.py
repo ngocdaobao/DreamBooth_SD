@@ -41,7 +41,6 @@ pipe = StableDiffusionXLAdapterPipeline.from_pretrained(
 pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
 
-pipe.enable_xformers_memory_efficient_attention()
 
 # =====================
 # Inference
