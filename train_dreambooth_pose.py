@@ -1694,6 +1694,8 @@ def main(args):
         ])
         pose = pose_transform(pose).unsqueeze(0)
         poses.append(pose)
+    
+    pose_cyle = itertools.cycle(poses)
 
     # Extract embedding face in input using lightweight face encoder
     face_encoder = FaceAnalysis(
@@ -1810,7 +1812,7 @@ def main(args):
                     #ControlNet forward with a random pose from poses   
 
                     prompt_embeds_input = prompt_embeds.repeat(elems_to_repeat_text_embeds, 1, 1)
-                    pose = random.choice(poses)
+                    pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
                     down_res, mid_res = controlnet(
                         noisy_model_input,
                         timesteps,
@@ -1938,7 +1940,7 @@ def main(args):
 
                 # --- Face Consistency Loss ---
                 # For each generated image, compute cosine similarity to the mean embedding of all original faces
-                lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
+                lambda_face = 1  # Weight for face consistency loss (tune as needed)
                 face_loss = 0.0
                 num_valid = 0
                 try:
