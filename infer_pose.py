@@ -21,17 +21,17 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a photo of sks girl in Paris street'
-negative_prompt = 'identity drift, unrealistic body'
+prompt = 'a photo of sks girl in Paris street with the pose of a person walking forward mid-stride, with the torso upright and slightly leaning ahead, the right leg stepping forward while the left leg extends backward, and the arms swinging naturally in opposite directions, one arm reaching forward and the other bent and drawn back for balance.'
+# negative_prompt = 'identity drift, abnormal body'
 torch.manual_seed(2)
 result = pipe(
     prompt=prompt,
-    negative_prompt=negative_prompt,
+    # negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
     guidance_scale=9.0,
 
-    controlnet_conditioning_scale=0.7,
+    controlnet_conditioning_scale=0.0,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
