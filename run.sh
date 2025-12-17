@@ -42,7 +42,7 @@ fi
 
 echo "Using class_token=${class_token}, unique_token=${unique_token} (default)"
 
-python train_dreambooth_sdxl_lora.py \
+python train_dreambooth_pose.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
   --instance_data_dir="dataset/${class_token}" \
   --class_data_dir="${class_token}_class_images" \
