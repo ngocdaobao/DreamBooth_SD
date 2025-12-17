@@ -29,11 +29,11 @@ result = pipe(
     # negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
-    guidance_scale=9.0,
+    guidance_scale=7.5,
 
-    controlnet_conditioning_scale=0.9,
-    # control_guidance_start=0.3,   # 🔑 start pose late
-    # control_guidance_end=1.0,
+    controlnet_conditioning_scale=0.6,
+    control_guidance_start=0.0,   # 🔑 start pose late
+    control_guidance_end=1.0,
 ).images[0]
 
-result.save("late_pose_09_03_output.png")
+result.save("late_pose_06_00_output.png")
