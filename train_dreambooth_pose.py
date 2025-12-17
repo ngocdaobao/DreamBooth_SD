@@ -1703,7 +1703,7 @@ def main(args):
     face_encoder.prepare(ctx_id=0)
     # Precompute embeddings for all input faces (assuming one face per image)
     face_embeddings = []
-    for face in os.listdir(args.instance_data_dir), desc='Precompute face embeddings':
+    for face in os.listdir(args.instance_data_dir):
         face_path = os.path.join(args.instance_data_dir, face)
         try:
             face_img = Image.open(face_path).convert('RGB')
