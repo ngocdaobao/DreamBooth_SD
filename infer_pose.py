@@ -34,3 +34,5 @@ result = pipe(
     control_guidance_start=0.6,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
+
+result.save("late_pose_output.png")
