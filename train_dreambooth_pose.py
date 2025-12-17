@@ -1187,6 +1187,7 @@ def main(args):
     text_encoder_two.requires_grad_(False)
     unet.requires_grad_(False)
     # controlnet.requires_grad_(False)
+    adapter.requires_grad_(False)
 
     # For mixed precision training we cast all non-trainable weights (vae, non-lora text_encoder and non-lora unet) to half-precision
     # as these weights are only used for inference, keeping weights in full precision is not required.
