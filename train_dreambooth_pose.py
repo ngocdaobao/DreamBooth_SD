@@ -52,6 +52,8 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
+from insightface.model_zoo import get_model
+
 # from metrics import im2im, im2prompt
 
 import diffusers
@@ -1692,7 +1694,25 @@ def main(args):
         ])
         pose = pose_transform(pose).unsqueeze(0)
         poses.append(pose)
-    
+
+    # Extract embedding face in input using lightweight face encoder
+    face_encoder = get_model('antelopev2')  # or 'mobilenetv2-glint360k'
+    face_encoder.prepare(ctx_id=0)
+    # Precompute embeddings for all input faces (assuming one face per image)
+    face_embeddings = []
+    for face in tqdm.tqdm(os.listdir(args.instance_data_dir), desc='Precompute face embeddings'):
+        face_path = os.path.join(args.instance_data_dir, face)
+        try:
+            face_img = Image.open(face_path).convert('RGB')
+            face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
+            emb = face_encoder.get(face_np)[0].embedding
+            face_embeddings.append(emb)
+        except Exception as e:
+            print(f"[Face Consistency] Failed to process {face_path}: {e}")
+            continue
+    all_embs = np.stack(face_embeddings, axis=0)
+    mean_emb = np.mean(all_embs, axis=0)
+    mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
@@ -1913,7 +1933,39 @@ def main(args):
                     # Add the prior loss to the instance loss.
                     loss = loss + args.prior_loss_weight * prior_loss
 
-                accelerator.backward(loss)
+                # --- Face Consistency Loss ---
+                # For each generated image, compute cosine similarity to the mean embedding of all original faces
+                lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
+                face_loss = 0.0
+                num_valid = 0
+                try:
+                    with torch.no_grad():
+                        gen_imgs = vae.decode(model_pred.float()).sample
+                    batch_size = gen_imgs.shape[0]
+                    for i in range(batch_size):
+                        gen_img = gen_imgs[i].detach().cpu().numpy()
+                        gen_img = np.transpose(gen_img, (1, 2, 0))  # CHW to HWC
+                        gen_img = (gen_img * 255).clip(0, 255).astype(np.uint8)
+                        gen_embs = face_encoder.get(gen_img)
+                        if len(gen_embs) == 0:
+                            continue
+                        gen_emb = gen_embs[0].embedding
+                        gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
+                        sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
+                        face_loss += (1 - sim)
+                        num_valid += 1
+                    if num_valid > 0:
+                        face_loss = face_loss / num_valid
+                    else:
+                        face_loss = 0.0
+                        print("[Face Consistency] Warning: No valid faces found in batch.")
+                except Exception as e:
+                    print(f"[Face Consistency] Error in face loss: {e}")
+                    face_loss = 0.0
+
+                total_loss = loss + lambda_face * face_loss
+                accelerator.backward(total_loss)
+
                 if accelerator.sync_gradients:
                     params_to_clip = (
                         itertools.chain(unet_lora_parameters, text_lora_parameters_one, text_lora_parameters_two)
@@ -1925,6 +1977,7 @@ def main(args):
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
+
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
