@@ -1,60 +1,35 @@
-from diffusers.utils.torch_utils import randn_tensor
+from diffusers import StableDiffusionXLControlNetPipeline
+from diffusers import ControlNetModel
+from controlnet_aux import OpenposeDetector
+import torch
+from PIL import Image
+import gdown
 
-num_steps = 30
-pose_start_ratio = 0.6   # pose starts after 60%
-pose_scale = 0.6
+link = "https://drive.google.com/file/d/1gNjI7LlcSdlJwa50Dw9p9o8wgJkfcrOH/view?usp=drive_link"
 
-pipe.scheduler.set_timesteps(num_steps, device="cuda")
+lora_ckpt = gdown.download(link=link, quiet=False, fuzzy=True)
+pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+controlnet = ControlNetModel.from_pretrained('thibault/controlnet-openpose-sdxl', torch_dtype=torch.float16)
+pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+    "stabilityai/stable-diffusion-xl-base-1.0",,
+    controlnet=controlnet,
+    torch_dtype=torch.float16,
+)
+pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
+pipe.to('cuda')
+pose = 'poses/standing_03.png'
+pose_image = Image.open(pose)
+pose_image = pose_image.resize((1024,1024))
+prompt = 'a sks girl in the road, photorealistic, high quality'
+negative_prompt = 'distorted face, blurred, low quality, ugly'
 
-# 1. Encode prompt
-prompt_embeds, pooled_prompt_embeds = pipe.encode_prompt(
+result = pipe(
     prompt=prompt,
-    device="cuda",
-    num_images_per_prompt=1,
-    do_classifier_free_guidance=True,
-)
-
-# 2. Prepare latents
-latents = randn_tensor(
-    (1, pipe.unet.config.in_channels, 128, 128),
-    device="cuda",
-    dtype=torch.float16,
-)
-
-# 3. Encode pose ONCE
-adapter_states = pipe.adapter(
     image=pose_image,
-    device="cuda",
-    dtype=torch.float16,
-)
+    num_inference_steps=30,
+    guidance_scale=7.5,
 
-# 4. Denoising loop with late pose
-for i, t in enumerate(pipe.scheduler.timesteps):
-
-    # 🔑 late pose gating
-    if i < int(num_steps * pose_start_ratio):
-        cur_adapter_scale = 0.0
-    else:
-        cur_adapter_scale = pose_scale
-
-    latent_model_input = torch.cat([latents] * 2)
-
-    noise_pred = pipe.unet(
-        latent_model_input,
-        t,
-        encoder_hidden_states=prompt_embeds,
-        pooled_encoder_hidden_states=pooled_prompt_embeds,
-        adapter_states=adapter_states,
-        adapter_conditioning_scale=cur_adapter_scale,
-    ).sample
-
-    noise_uncond, noise_text = noise_pred.chunk(2)
-    noise_pred = noise_uncond + 7.5 * (noise_text - noise_uncond)
-
-    latents = pipe.scheduler.step(noise_pred, t, latents).prev_sample
-
-# 5. Decode
-image = pipe.vae.decode(latents / pipe.vae.config.scaling_factor).sample
-image = pipe.image_processor.postprocess(image)[0]
-
-image.save("infer_pose_output.png")
+    controlnet_conditioning_scale=0.8,
+    control_guidance_start=0.6,   # 🔑 start pose late
+    control_guidance_end=1.0,
+).images[0]
