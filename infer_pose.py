@@ -53,7 +53,7 @@ pose_image = Image.open('poses/standing_03.png')
 #     controlnet=controlnet,
 # )
 
-pipe = StableDiffusionXLPipeline.from_pretrained(...)
+pipe = StableDiffusionXLPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0")
 pipe.load_t2i_adapter("TencentARC/t2i-adapter-openpose-sdxl")
 pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
