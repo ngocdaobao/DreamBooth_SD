@@ -3,7 +3,9 @@ import torch
 from controlnet_aux import OpenposeDetector
 from diffusers import (
     # StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLAdapterPipeline,
     StableDiffusionXLPipeline,
+    T2IAdapter,
     # ControlNetModel
 )
 from diffusers.utils import load_image
@@ -54,9 +56,12 @@ pose_image = Image.open('poses/standing_03.png')
 # )
 
 pipe = StableDiffusionXLPipeline.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0")
-pipe.load_ip_adapter("TencentARC/t2i-adapter-openpose-sdxl")
 pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
+
+adapter = T2IAdapter.from_pretrained(
+  "TencentARC/t2i-adapter-openpose-sdxl-1.0", torch_dtype=torch.float16
+).to("cuda")
 
 image = pipe(
     prompt,
