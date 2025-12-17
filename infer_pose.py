@@ -21,18 +21,17 @@ pipe.to('cuda')
 pose = 'poses/standing_03.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a sks girl in the road'
-negative_prompt = 'distorted face, NOT sks girl, blurred, low quality, ugly'
-torch.manual_seed(42)
-
+prompt = 'a photo of sks girl in Paris street'
+# negative_prompt = 'distorted face, NOT sks girl, blurred, low quality, ugly'
+torch.manual_seed(4)
 result = pipe(
     prompt=prompt,
-    negative_prompt=negative_prompt,
+    # negative_prompt=negative_prompt,
     image=pose_image,
-    num_inference_steps=30,
+    num_inference_steps=40,
     guidance_scale=15.0,
 
-    controlnet_conditioning_scale=0.8,
+    controlnet_conditioning_scale=0.0,
     control_guidance_start=0.8,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
