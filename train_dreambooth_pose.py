@@ -1695,7 +1695,7 @@ def main(args):
         pose = pose_transform(pose).unsqueeze(0)
         poses.append(pose)
     
-    pose_cyle = itertools.cycle(poses)
+    pose_cycle = itertools.cycle(poses)
 
     # Extract embedding face in input using lightweight face encoder
     face_encoder = FaceAnalysis(
