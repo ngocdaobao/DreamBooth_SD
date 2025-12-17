@@ -16,5 +16,5 @@ pipe.to("cuda")
 # Load LoRA
 torch.manual_seed(2)
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
-image = pipe('a sks girl', num_inference_steps=40).images[0]
+image = pipe('a photo of sks girl in Paris street', num_inference_steps=40).images[0]
 image.save("inference_output.png")
