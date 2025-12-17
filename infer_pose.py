@@ -11,7 +11,7 @@ lora_ckpt = gdown.download(link=link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained('thibault/controlnet-openpose-sdxl', torch_dtype=torch.float16)
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-    "stabilityai/stable-diffusion-xl-base-1.0",,
+    "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
     torch_dtype=torch.float16,
 )
