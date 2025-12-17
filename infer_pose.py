@@ -29,7 +29,7 @@ result = pipe(
     # negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
-    guidance_scale=15.0,
+    guidance_scale=7.5,
 
     controlnet_conditioning_scale=0.0,
     control_guidance_start=0.8,   # 🔑 start pose late
