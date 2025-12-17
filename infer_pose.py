@@ -2,9 +2,9 @@ import gdown
 import torch
 from controlnet_aux import OpenposeDetector
 from diffusers import (
-    StableDiffusionXLControlNetPipeline,
+    # StableDiffusionXLControlNetPipeline,
     StableDiffusionXLPipeline,
-    ControlNetModel
+    # ControlNetModel
 )
 from diffusers.utils import load_image
 from PIL import Image
@@ -25,12 +25,12 @@ image_for_pose = "ballerina.jpg"
 # =====================
 # OpenPose (SDXL compatible)
 # =====================
-pose_detector = OpenposeDetector.from_pretrained(
-    "lllyasviel/ControlNet"
-)
+# pose_detector = OpenposeDetector.from_pretrained(
+#     "lllyasviel/ControlNet"
+# )
 
-image = load_image(image_for_pose)
-pose_image = pose_detector(image)
+# image = load_image(image_for_pose)
+# pose_image = pose_detector(image)
 # pose_image = pose_image.resize((1024, 1024))
 # pose_image.save("ballerina.png")
 pose_image = Image.open('poses/standing_03.png')
