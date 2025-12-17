@@ -46,23 +46,31 @@ controlnet = ControlNetModel.from_pretrained(
 # =====================
 # SDXL ControlNet Pipeline
 # =====================
-pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-    "stabilityai/stable-diffusion-xl-base-1.0",
-    torch_dtype=torch.float16,
-    use_safetensors=True,
-    controlnet=controlnet,
-)
+# pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+#     "stabilityai/stable-diffusion-xl-base-1.0",
+#     torch_dtype=torch.float16,
+#     use_safetensors=True,
+#     controlnet=controlnet,
+# )
 
+pipe = StableDiffusionXLPipeline.from_pretrained(...)
+pipe.load_t2i_adapter("TencentARC/t2i-adapter-openpose-sdxl")
 pipe.load_lora_weights(lora_weight_path)
 pipe.to("cuda")
+
+image = pipe(
+    prompt,
+    adapter_image=pose_img,
+    adapter_conditioning_scale=0.4
+).images[0]
+
 
 # =====================
 # Inference
 # =====================
 result = pipe(prompt= 'a photo of girl standing in the beach', 
-              num_inference_steps=40, 
-              control_image=pose_image,
-              image = pose_image,          
-              ).images[0]
+              adapter_image=pose_img,
+              adapter_conditioning_scale=0.4       
+        ).images[0]
 
 result.save("infer_pose_output.png")
