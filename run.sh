@@ -54,7 +54,7 @@ python train_dreambooth_pose.py \
   --unique_token="${unique_token}" \
   --resolution=1024 \
   --train_batch_size=2 \
-  --max_train_steps=2 \
+  --max_train_steps=1000 \
   --learning_rate=5e-5 \
   --mixed_precision="fp16" \
   --prior_loss_weight=0.2 \
