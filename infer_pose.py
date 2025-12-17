@@ -20,8 +20,9 @@ pipe.to('cuda')
 pose = 'poses/standing_03.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a sks girl in the road, photorealistic, high quality'
+prompt = 'a sks girl in the road'
 negative_prompt = 'distorted face, blurred, low quality, ugly'
+torch.manual_seed(42)
 
 result = pipe(
     prompt=prompt,
