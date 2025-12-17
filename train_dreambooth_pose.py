@@ -1696,7 +1696,7 @@ def main(args):
         poses.append(pose)
 
     # Extract embedding face in input using lightweight face encoder
-    face_encoder = get_model('antelopev2')  # or 'mobilenetv2-glint360k'
+    face_encoder = get_model('mobilenetv2-glint360k')  # or 'mobilenetv2-glint360k'
     face_encoder.prepare(ctx_id=0)
     # Precompute embeddings for all input faces (assuming one face per image)
     face_embeddings = []
