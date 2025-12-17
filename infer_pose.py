@@ -38,10 +38,10 @@ pose_image = Image.open('poses/standing_03.png')
 # =====================
 # ControlNet SDXL (QUAN TRỌNG)
 # =====================
-controlnet = ControlNetModel.from_pretrained(
-    "thibaud/controlnet-openpose-sdxl-1.0",
-    torch_dtype=torch.float16
-)
+# controlnet = ControlNetModel.from_pretrained(
+#     "thibaud/controlnet-openpose-sdxl-1.0",
+#     torch_dtype=torch.float16
+# )
 
 # =====================
 # SDXL ControlNet Pipeline
