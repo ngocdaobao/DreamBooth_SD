@@ -35,6 +35,6 @@ einops
 controlnet_aux
 gdown
 insightface
-
+onnxruntime
 
 
