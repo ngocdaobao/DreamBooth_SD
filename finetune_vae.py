@@ -1112,15 +1112,12 @@ def main(args):
         subfolder="scheduler",
     )
 
-    # Extract prompt 
-    prompt_ids = tokenize_prompt(pipeline.tokenizer, prompt).to("cuda")
-    prompt_hidden_states = text_encoder_one(prompt_ids)[0]
-    empty_prompt_ids = tokenize_prompt(pipeline.tokenizer, "pose").to("cuda")
-    empty_prompt_hidden_states = text_encoder_one(empty_prompt_ids)[0]
-    
-    # Extract pooled embeddings from text_encoder_two for SDXL
-    prompt_ids_2 = tokenize_prompt(pipeline.tokenizer_2, prompt).to("cuda")
-    pooled_prompt_embeds = text_encoder_two(prompt_ids_2, output_hidden_states=False)[0]
+    # Extract prompt embeddings using the encode_prompt function
+    text_encoders = [text_encoder_one, text_encoder_two]
+    tokenizers = [pipeline.tokenizer, pipeline.tokenizer_2]
+    prompt_hidden_states, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
+    prompt_hidden_states = prompt_hidden_states.to("cuda")
+    pooled_prompt_embeds = pooled_prompt_embeds.to("cuda")
 
     face_encoder = FaceAnalysis(
         name="buffalo_l",  # or mobilenetv2-glint360k
