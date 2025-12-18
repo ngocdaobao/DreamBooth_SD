@@ -1169,17 +1169,23 @@ def main(args):
 
                 for i, t in enumerate(pipeline.scheduler.timesteps):
                     latent_model_input = pipeline.scheduler.scale_model_input(latent, t)
-
                     with torch.no_grad():
+                    # correct pooled embeds for ControlNet
+                        controlnet_added_cond = {
+                            "text_embeds": pooled_empty_prompt_embeds.half(),  # NOT pooled_prompt_embeds
+                            "time_ids": torch.zeros(
+                                (latent_model_input.shape[0], 6),
+                                dtype=pooled_empty_prompt_embeds.dtype,
+                                device=pooled_empty_prompt_embeds.device,
+                            )
+                        }
+                    
                         down_res, mid_res = controlnet(
                             latent_model_input.half(),
                             t,
                             controlnet_cond=pose_batch.half(),
-                            encoder_hidden_states=prompt_hidden_states.half(),
-                            added_cond_kwargs={
-                                "text_embeds": pooled_prompt_embeds.half(),
-                                "time_ids": torch.zeros((latent_model_input.shape[0], 6), dtype=pooled_prompt_embeds.dtype, device=pooled_prompt_embeds.device)
-                            },
+                            encoder_hidden_states=empty_prompt_hidden_states.half(),  # IMPORTANT
+                            added_cond_kwargs=controlnet_added_cond,
                             return_dict=False
                         )
                         noise_pred = unet(
