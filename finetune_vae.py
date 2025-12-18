@@ -1175,7 +1175,7 @@ def main(args):
     os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
-    pipe.scheduler.set_timesteps(
+    pipeline.scheduler.set_timesteps(
         num_inference_steps=3,
         device="cuda"
     )
