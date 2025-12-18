@@ -1118,6 +1118,11 @@ def main(args):
     prompt_hidden_states, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
     prompt_hidden_states = prompt_hidden_states.to("cuda")
     pooled_prompt_embeds = pooled_prompt_embeds.to("cuda")
+    empty_prompt_hidden_states, pooled_empty_prompt_embeds = encode_prompt(
+        text_encoders, tokenizers, ""
+    )
+    empty_prompt_hidden_states = empty_prompt_hidden_states.to("cuda")
+    pooled_empty_prompt_embeds = pooled_empty_prompt_embeds.to("cuda")
 
     # Debug: print shapes to understand what we're working with
     print(f"prompt_hidden_states shape: {prompt_hidden_states.shape}")
