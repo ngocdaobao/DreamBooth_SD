@@ -1171,7 +1171,7 @@ def main(args):
                             t,
                             controlnet_cond=pose_batch.half(),
                             encoder_hidden_states=empty_prompt_hidden_states.half(),
-                            added_cond_kwargs={},
+                            added_cond_kwargs={"text_embeds": empty_prompt_hidden_states.half()},
                             return_dict=False
                         )
                         noise_pred = unet(
