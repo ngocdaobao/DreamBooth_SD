@@ -1176,7 +1176,7 @@ def main(args):
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
     pipeline.scheduler.set_timesteps(
-        num_inference_steps=30,
+        num_inference_steps=40,
         device="cuda"
     )
 
