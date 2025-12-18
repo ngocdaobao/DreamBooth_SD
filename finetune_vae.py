@@ -1017,13 +1017,13 @@ def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
 def main(args):
     # ...existing code...
     # Save VAE checkpoint after training
-    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float32)
+    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
     pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         revision=args.revision,
         subfolder="pipeline",
         controlnet=controlnet,
-        torch_dtype=torch.float32,
+        torch_dtype=torch.float16,
         use_auth_token=True,
     )
 
@@ -1054,7 +1054,7 @@ def main(args):
             T.Resize((1024, 1024)),
             T.ToTensor(),   # converts PIL → Tensor in [0,1]
         ])
-        pose = pose_transform(pose)
+        pose = pose_transform(pose)  # Remove unsqueeze(0) - DataLoader will add batch dimension
         poses.append(pose)
     
     class PoseDataset(Dataset):
@@ -1119,13 +1119,13 @@ def main(args):
     text_encoders = [text_encoder_one, text_encoder_two]
     tokenizers = [pipeline.tokenizer, pipeline.tokenizer_2]
     prompt_hidden_states, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
-    prompt_hidden_states = prompt_hidden_states.to("cuda")
-    pooled_prompt_embeds = pooled_prompt_embeds.to("cuda")
+    prompt_hidden_states = prompt_hidden_states.to("cuda").half()
+    pooled_prompt_embeds = pooled_prompt_embeds.to("cuda").half()
     empty_prompt_hidden_states, pooled_empty_prompt_embeds = encode_prompt(
         text_encoders, tokenizers, ""
     )
-    empty_prompt_hidden_states = empty_prompt_hidden_states.to("cuda")
-    pooled_empty_prompt_embeds = pooled_empty_prompt_embeds.to("cuda")
+    empty_prompt_hidden_states = empty_prompt_hidden_states.to("cuda").half()
+    pooled_empty_prompt_embeds = pooled_empty_prompt_embeds.to("cuda").half()
     
     # Debug: Print shapes immediately after encoding
     print("\n=== PROMPT ENCODING DEBUG ===")
@@ -1182,9 +1182,9 @@ def main(args):
             with accelerator.accumulate(vae):
                 latent_shape = (pose_batch.shape[0], 4, 1024//8, 1024//8)
                 latent = torch.randn(latent_shape, device=pose_batch.device)
-
+                print(len(pipeline.scheduler.timesteps))
                 for i, t in enumerate(pipeline.scheduler.timesteps):
-                    latent_model_input = pipeline.scheduler.scale_model_input(latent, t)
+                    latent_model_input = pipeline.scheduler.scale_model_input(latent, t).half()
                     with torch.no_grad():
                     # correct pooled embeds for ControlNet
                         # Repeat embeddings to match batch size if needed
@@ -1215,7 +1215,7 @@ def main(args):
                         down_res, mid_res = controlnet(
                             latent_model_input,
                             t,
-                            controlnet_cond=pose_batch,
+                            controlnet_cond=pose_batch.half(),
                             encoder_hidden_states=empty_prompt_hidden_states.repeat(batch_size, 1, 1),
                             added_cond_kwargs=controlnet_added_cond,
                             return_dict=False
