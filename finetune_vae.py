@@ -1187,13 +1187,26 @@ def main(args):
                     latent_model_input = pipeline.scheduler.scale_model_input(latent, t)
                     with torch.no_grad():
                     # correct pooled embeds for ControlNet
+                        controlnet_text_embeds = pooled_empty_prompt_embeds.half()
+                        controlnet_time_ids = torch.zeros(
+                            (latent_model_input.shape[0], 6),
+                            dtype=pooled_empty_prompt_embeds.dtype,
+                            device=pooled_empty_prompt_embeds.device,
+                        )
+                        
+                        # Debug: print what we're passing
+                        if i == 0 and step == 0:
+                            print(f"\n=== CONTROLNET INPUT DEBUG (Step {step}, Timestep {i}) ===")
+                            print(f"controlnet_text_embeds shape: {controlnet_text_embeds.shape}")
+                            print(f"controlnet_text_embeds dtype: {controlnet_text_embeds.dtype}")
+                            print(f"controlnet_time_ids shape: {controlnet_time_ids.shape}")
+                            print(f"controlnet_time_ids dtype: {controlnet_time_ids.dtype}")
+                            print(f"Expected concat dim: {controlnet_text_embeds.shape[-1]} + {controlnet_time_ids.shape[-1]} = {controlnet_text_embeds.shape[-1] + controlnet_time_ids.shape[-1]}")
+                            print("=" * 60)
+                        
                         controlnet_added_cond = {
-                            "text_embeds": pooled_empty_prompt_embeds.half(),  # NOT pooled_prompt_embeds
-                            "time_ids": torch.zeros(
-                                (latent_model_input.shape[0], 6),
-                                dtype=pooled_empty_prompt_embeds.dtype,
-                                device=pooled_empty_prompt_embeds.device,
-                            )
+                            "text_embeds": controlnet_text_embeds,
+                            "time_ids": controlnet_time_ids
                         }
                     
                         down_res, mid_res = controlnet(
@@ -1204,12 +1217,24 @@ def main(args):
                             added_cond_kwargs=controlnet_added_cond,
                             return_dict=False
                         )
+                        
+                        # UNet also needs added_cond_kwargs for SDXL
+                        unet_added_cond = {
+                            "text_embeds": pooled_prompt_embeds.half(),
+                            "time_ids": torch.zeros(
+                                (latent_model_input.shape[0], 6),
+                                dtype=pooled_prompt_embeds.dtype,
+                                device=pooled_prompt_embeds.device,
+                            )
+                        }
+                        
                         noise_pred = unet(
                             latent_model_input.half(),
                             t,
                             encoder_hidden_states=prompt_hidden_states.half(),
                             down_block_additional_residuals=down_res,
                             mid_block_additional_residual=mid_res,
+                            added_cond_kwargs=unet_added_cond,
                             return_dict=False
                         )[0]
 
