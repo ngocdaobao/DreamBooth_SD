@@ -1175,10 +1175,6 @@ def main(args):
     os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
-    pipeline.scheduler.set_timesteps(
-        num_inference_steps=40,
-        device="cuda"
-    )
 
     for epoch in range(args.num_train_epochs):
         vae.train()
@@ -1186,7 +1182,7 @@ def main(args):
             with accelerator.accumulate(vae):
                 latent_shape = (pose_batch.shape[0], 4, 1024//8, 1024//8)
                 latent = torch.randn(latent_shape, device=pose_batch.device)
-                print(len(pipeline.scheduler.timesteps))
+
                 for i, t in enumerate(pipeline.scheduler.timesteps):
                     latent_model_input = pipeline.scheduler.scale_model_input(latent, t).half()
                     with torch.no_grad():
@@ -1249,31 +1245,46 @@ def main(args):
                         )[0]
 
                     latents = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
+                
+                # After diffusion is complete, decode and compute loss
                 gen_latent_feature = latents
                 gen_output = vae.decode(gen_latent_feature / vae.config.scaling_factor).sample
-                # Save to image
+                
+                # Save to image and extract face embeddings
                 pred_image = (gen_output.clamp(-1, 1) + 1) / 2  # scale to [0,1]
+                batch_embeddings = []
+                
                 for idx in range(pred_image.shape[0]):
-                    img = pred_image[idx].detach().cpu().numpy()
+                    img = pred_image[idx].detach().cpu().float().numpy()  # Convert to float first
                     img = np.transpose(img, (1, 2, 0))  # CHW to HWC
                     img = (img * 255).clip(0, 255).astype(np.uint8)
                     pil_img = Image.fromarray(img)
-                    pil_img.save(f"{args.pred_image_dir}/step{step}_t{i}_idx{idx}.png")
-                    #Extract face embedding
+                    pil_img.save(f"{args.pred_image_dir}/step{step}_idx{idx}.png")
+                    
+                    # Extract face embedding
                     emb = extract_face_embedding(np.array(pil_img)[:, :, ::-1])
-
-                # Example backward and optimizer step (add your loss calculation here)
-                # loss = ...
-                # accelerator.backward(loss)
-                # optimizer.step()
-                # lr_scheduler.step()
-                # optimizer.zero_grad()
-                loss = F.mse_loss(emb, mean_face_embedding)
-
-                loss.backward()
-                optimizer.step()
-                lr_scheduler.step()
-                optimizer.zero_grad()
+                    
+                    if emb is not None:
+                        batch_embeddings.append(emb)
+                
+                # Only compute loss if we detected at least one face
+                if len(batch_embeddings) > 0:
+                    batch_embeddings = torch.stack(batch_embeddings).to('cuda')
+                    # Use mean of batch embeddings
+                    mean_batch_emb = torch.mean(batch_embeddings, dim=0, keepdim=True)
+                    loss = F.mse_loss(mean_batch_emb, mean_face_embedding)
+                    
+                    accelerator.backward(loss)
+                    optimizer.step()
+                    lr_scheduler.step()
+                    optimizer.zero_grad()
+                    
+                    if step % 10 == 0:
+                        print(f"Step {step}, Loss: {loss.item():.4f}, Faces detected: {len(batch_embeddings)}/{pred_image.shape[0]}")
+                else:
+                    print(f"Step {step}: No faces detected, skipping backward pass")
+                    optimizer.zero_grad()
+                
                 global_step += 1
                 progress_bar.update(1)
                 if global_step >= args.max_train_steps:
