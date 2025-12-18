@@ -1172,7 +1172,7 @@ def main(args):
 
      #Compute mean embedding of cropped faces
 
-
+    os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
     pipeline.scheduler.set_timesteps(
