@@ -1169,7 +1169,7 @@ def main(args):
                         down_res, mid_res = controlnet(
                             latent_model_input,
                             t,
-                            controlnet_cond=pose_batch[0],
+                            controlnet_cond=pose_batch,
                             encoder_hidden_states=empty_prompt_hidden_states,
                             return_dict=False
                         )
