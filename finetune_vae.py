@@ -1170,8 +1170,8 @@ def main(args):
                             latent_model_input.half(),
                             t,
                             controlnet_cond=pose_batch.half(),
-                            encoder_hidden_states=empty_prompt_hidden_states.half(),
-                            added_cond_kwargs={"text_embeds": empty_prompt_hidden_states.half()},
+                            encoder_hidden_states=prompt_hidden_states.half(),
+                            added_cond_kwargs={"text_embeds": prompt_hidden_states.half()},
                             return_dict=False
                         )
                         noise_pred = unet(
