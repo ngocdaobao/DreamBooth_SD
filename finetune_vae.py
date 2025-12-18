@@ -1167,22 +1167,22 @@ def main(args):
 
                     with torch.no_grad():
                         down_res, mid_res = controlnet(
-                            latent_model_input,
+                            latent_model_input.half(),
                             t,
-                            controlnet_cond=pose_batch,
-                            encoder_hidden_states=empty_prompt_hidden_states,
+                            controlnet_cond=pose_batch.half(),
+                            encoder_hidden_states=empty_prompt_hidden_states.half(),
                             return_dict=False
                         )
                         noise_pred = unet(
-                            latent_model_input,
+                            latent_model_input.half(),
                             t,
-                            encoder_hidden_states=prompt_hidden_states,
+                            encoder_hidden_states=prompt_hidden_states.half(),
                             down_block_additional_residuals=down_res,
                             mid_block_additional_residual=mid_res,
                             return_dict=False
                         )[0]
 
-                    latents = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
+                    latents = pipeline.scheduler.step(noise_pred, t, latent_model_input.half()).prev_sample
                 gen_latent_feature = latents
                 gen_output = vae.decode(gen_latent_feature / vae.config.scaling_factor).sample
                 # Save to image
