@@ -1096,17 +1096,15 @@ def main(args):
         power=args.lr_power,
         num_cycles=args.lr_num_cycles,
     )
-
-    # Prepare models, optimizer, dataloader with accelerator
-    vae, optimizer, pose_dataloader, lr_scheduler = accelerator.prepare(
-        vae, optimizer, pose_dataloader, lr_scheduler
-    )
-
     pose_dataset = PoseDataset(poses)
     pose_dataloader = DataLoader(
         pose_dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
+    )
+    # Prepare models, optimizer, dataloader with accelerator
+    vae, optimizer, pose_dataloader, lr_scheduler = accelerator.prepare(
+        vae, optimizer, pose_dataloader, lr_scheduler
     )
     
     noise_scheduler = DDPMScheduler.from_pretrained(
