@@ -1045,27 +1045,71 @@ def main(args):
         if "decoder" in name:
             param.requires_grad = True
 
+    # Load pose images for ControlNet conditioning
     pose_path = 'poses'
     poses = []
     for img in os.listdir(pose_path):
-        pose = load_image(os.path.join(pose_path, img))
-        pose = pose.resize((1024,1024))
-        pose_transform = T.Compose([
-            T.Resize((1024, 1024)),
-            T.ToTensor(),   # converts PIL → Tensor in [0,1]
-        ])
-        pose = pose_transform(pose)  # Remove unsqueeze(0) - DataLoader will add batch dimension
+        pose = Image.open(os.path.join(pose_path, img)).resize((1024, 1024))
         poses.append(pose)
     
-    class PoseDataset(Dataset):
-        def __init__(self, poses):
+    # Load instance images to encode with VAE
+    instance_images = []
+    image_transform = T.Compose([
+        T.Resize((1024, 1024)),
+        T.ToTensor(),
+        T.Normalize([0.5], [0.5]),  # Normalize to [-1, 1]
+    ])
+    
+    for img_file in os.listdir(args.instance_data_dir):
+        img_path = os.path.join(args.instance_data_dir, img_file)
+        if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            img = Image.open(img_path).convert('RGB')
+            img_tensor = image_transform(img)
+            instance_images.append(img_tensor)
+
+    face_encoder = FaceAnalysis(
+        name="buffalo_l",  # or mobilenetv2-glint360k
+        providers=["CUDAExecutionProvider"]
+    )
+
+    def extract_face_embedding(img: Image) -> torch.tensor: #detect face in img as np array then extract embedding of face
+        # PIL -> OpenCV BGR
+        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+
+        faces = face_encoder.get(img)
+        face = faces[0]
+        return face.embedding
+    
+    #Crop face of instance images
+    face_embeddings = []
+    for face in os.listdir(args.instance_data_dir):
+        face_path = os.path.join(args.instance_data_dir, face)
+        face_img = Image.open(face_path)
+        emb = extract_face_embedding(face_img)
+        face_embeddings.append(emb)
+    
+    # Pair poses with instance images
+    class PairedDataset(Dataset):
+        def __init__(self, poses, images, face_embs):
             self.poses = poses
+            self.images = images
+            self.face_embs = face_embs
+            # Create all combinations: num_images * num_poses
+            self.length = len(poses) * len(images)
 
         def __len__(self):
-            return len(self.poses)
+            return self.length
 
         def __getitem__(self, idx):
-            return self.poses[idx]
+            # Map linear index to (image_idx, pose_idx)
+            image_idx = idx % len(self.images)
+            pose_idx = idx // len(self.images)
+            
+            return {
+                'pose': self.poses[pose_idx],
+                'image': self.images[image_idx],
+                'image_face_emb': self.face_embs[image_idx]
+            }
 
     prompt = args.instance_prompt
 
@@ -1099,197 +1143,48 @@ def main(args):
         power=args.lr_power,
         num_cycles=args.lr_num_cycles,
     )
-    pose_dataset = PoseDataset(poses)
-    pose_dataloader = DataLoader(
-        pose_dataset,
+    paired_dataset = PairedDataset(poses, instance_images, face_embeddings)
+    paired_dataloader = DataLoader(
+        paired_dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
     )
     # Prepare models, optimizer, dataloader with accelerator
-    vae, optimizer, pose_dataloader, lr_scheduler = accelerator.prepare(
-        vae, optimizer, pose_dataloader, lr_scheduler
+    vae, optimizer, paired_dataloader, lr_scheduler = accelerator.prepare(
+        vae, optimizer, paired_dataloader, lr_scheduler
     )
     
-    noise_scheduler = DDPMScheduler.from_pretrained(
-        args.pretrained_model_name_or_path,
-        subfolder="scheduler",
-    )
-
-    # Extract prompt embeddings using the encode_prompt function
-    text_encoders = [text_encoder_one, text_encoder_two]
-    tokenizers = [pipeline.tokenizer, pipeline.tokenizer_2]
-    prompt_hidden_states, pooled_prompt_embeds = encode_prompt(text_encoders, tokenizers, prompt)
-    prompt_hidden_states = prompt_hidden_states.to("cuda").half()
-    pooled_prompt_embeds = pooled_prompt_embeds.to("cuda").half()
-    empty_prompt_hidden_states, pooled_empty_prompt_embeds = encode_prompt(
-        text_encoders, tokenizers, ""
-    )
-    empty_prompt_hidden_states = empty_prompt_hidden_states.to("cuda").half()
-    pooled_empty_prompt_embeds = pooled_empty_prompt_embeds.to("cuda").half()
-    
-    # Debug: Print shapes immediately after encoding
-    print("\n=== PROMPT ENCODING DEBUG ===")
-    print(f"prompt_hidden_states shape: {prompt_hidden_states.shape}")
-    print(f"pooled_prompt_embeds shape: {pooled_prompt_embeds.shape}")
-    print(f"empty_prompt_hidden_states shape: {empty_prompt_hidden_states.shape}")
-    print(f"pooled_empty_prompt_embeds shape: {pooled_empty_prompt_embeds.shape}")
-    print("============================\n")
-
-    # Debug: print shapes to understand what we're working with
-    print(f"prompt_hidden_states shape: {prompt_hidden_states.shape}")
-    print(f"pooled_prompt_embeds shape: {pooled_prompt_embeds.shape}")
-    
-    face_encoder = FaceAnalysis(
-        name="buffalo_l",  # or mobilenetv2-glint360k
-        providers=["CUDAExecutionProvider"]
-    )
-
-    face_encoder = FaceAnalysis('buffalo_l')
-    face_encoder.prepare(ctx_id=0, det_thresh=0.6, det_size=(512, 512))
-
-    def extract_face_embedding(img) -> torch.tensor: #detect face in img as np array then extract embedding of face
-        faces = face_encoder.get(img)
-        if len(faces) == 0:
-            return None
-        face = faces[0]
-        embedding = face.embedding
-        embedding = torch.tensor(embedding, dtype=torch.float32)
-        return embedding
-       
-    
-    #Crop face of instance images
-    face_embeddings = []
-    for face in os.listdir(args.instance_data_dir):
-        face_path = os.path.join(args.instance_data_dir, face)
-        face_img = Image.open(face_path).convert('RGB')
-        face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
-        emb = extract_face_embedding(face_np)
-        if emb is None:
-            raise ValueError(f"No face detected in image {face_path}")
-        face_embeddings.append(emb)
-    face_embeddings = torch.stack(face_embeddings).to('cuda')
-    mean_face_embedding = torch.mean(face_embeddings, dim=0, keepdim=True)
-
-     #Compute mean embedding of cropped faces
-
     os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
     
     for epoch in range(args.num_train_epochs):
-        vae.train()
-        for step, pose_batch in enumerate(pose_dataloader):
+        for step, batch in enumerate(paired_dataloader):
+            org_imgs = batch['image'].to("cuda").half()
+            poses = batch['pose']
+            org_embs = batch['image_face_emb'].to("cuda").half()
+
             with accelerator.accumulate(vae):
-                # Reset scheduler for each batch
-                noise_scheduler.set_timesteps(
-                    num_inference_steps=40,
-                    device="cuda"
-                )
-                
-                latent_shape = (pose_batch.shape[0], 4, 1024//8, 1024//8)
-                latent = torch.randn(latent_shape, device=pose_batch.device)
+                for i, pose in enumerate(poses):
+                    pred_image = pipeline(
+                        prompt=prompt,
+                        image=pose,
+                        num_inference_steps=40,
+                        guidance_scale=7.5,
+                        negative_prompt="lowres, bad anatomy, error body, error hands, missing fingers,",
+                        controlnet_conditioning_scale=1.0,
+                        controlnet_guidance_start=0.0,
+                        controlnet_guidance_end=1.0,
+                    ).images[0]
 
-                for i, t in enumerate(noise_scheduler.timesteps):
-                    latent_model_input = noise_scheduler.scale_model_input(latent, t).half()
-                    with torch.no_grad():
-                    # correct pooled embeds for ControlNet
-                        # Repeat embeddings to match batch size if needed
-                        batch_size = latent_model_input.shape[0]
-                        controlnet_text_embeds = pooled_empty_prompt_embeds.repeat(batch_size, 1)
-                        controlnet_time_ids = torch.zeros(
-                            (batch_size, 6),
-                            dtype=pooled_empty_prompt_embeds.dtype,
-                            device=pooled_empty_prompt_embeds.device,
-                        )
-
-                        # Debug: print what we're passing
-                        if i == 0 and step == 0:
-                            print(f"\n=== CONTROLNET INPUT DEBUG (Step {step}, Timestep {i}) ===")
-                            print(f"batch_size: {batch_size}")
-                            print(f"controlnet_text_embeds shape: {controlnet_text_embeds.shape}")
-                            print(f"controlnet_text_embeds dtype: {controlnet_text_embeds.dtype}")
-                            print(f"controlnet_time_ids shape: {controlnet_time_ids.shape}")
-                            print(f"controlnet_time_ids dtype: {controlnet_time_ids.dtype}")
-                            print(f"Expected concat dim: {controlnet_text_embeds.shape[-1]} + {controlnet_time_ids.shape[-1]} = {controlnet_text_embeds.shape[-1] + controlnet_time_ids.shape[-1]}")
-                            print("=" * 60)
-                        
-                        controlnet_added_cond = {
-                            "text_embeds": controlnet_text_embeds,
-                            "time_ids": controlnet_time_ids
-                        }
-                    
-                        down_res, mid_res = controlnet(
-                            latent_model_input,
-                            t,
-                            controlnet_cond=pose_batch.half(),
-                            encoder_hidden_states=empty_prompt_hidden_states.repeat(batch_size, 1, 1),
-                            added_cond_kwargs=controlnet_added_cond,
-                            return_dict=False
-                        )
-                        
-                        # UNet also needs added_cond_kwargs for SDXL
-                        unet_text_embeds = pooled_prompt_embeds.repeat(batch_size, 1)
-                        unet_time_ids = torch.zeros(
-                            (batch_size, 6),
-                            dtype=pooled_prompt_embeds.dtype,
-                            device=pooled_prompt_embeds.device,
-                        )
-                        
-                        unet_added_cond = {
-                            "text_embeds": unet_text_embeds,
-                            "time_ids": unet_time_ids
-                        }
-                        
-                        noise_pred = unet(
-                            latent_model_input,
-                            t,
-                            encoder_hidden_states=prompt_hidden_states.repeat(batch_size, 1, 1),
-                            down_block_additional_residuals=down_res,
-                            mid_block_additional_residual=mid_res,
-                            added_cond_kwargs=unet_added_cond,
-                            return_dict=False
-                        )[0]
-
-                    latent = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
-                
-                # After diffusion is complete, decode and compute loss
-                gen_latent_feature = latent
-                gen_output = vae.decode(gen_latent_feature / vae.config.scaling_factor).sample
-                
-                # Save to image and extract face embeddings
-                pred_image = (gen_output.clamp(-1, 1) + 1) / 2  # scale to [0,1]
-                batch_embeddings = []
-                
-                for idx in range(pred_image.shape[0]):
-                    img = pred_image[idx].detach().cpu().float().numpy()  # Convert to float first
-                    img = np.transpose(img, (1, 2, 0))  # CHW to HWC
-                    img = (img * 255).clip(0, 255).astype(np.uint8)
-                    pil_img = Image.fromarray(img)
-                    pil_img.save(f"{args.pred_image_dir}/step{step}_idx{idx}.png")
-                    
-                    # Extract face embedding
-                    emb = extract_face_embedding(np.array(pil_img)[:, :, ::-1])
-                    
-                    if emb is not None:
-                        batch_embeddings.append(emb)
-                
-                # Only compute loss if we detected at least one face
-                if len(batch_embeddings) > 0:
-                    batch_embeddings = torch.stack(batch_embeddings).to('cuda')
-                    # Use mean of batch embeddings
-                    mean_batch_emb = torch.mean(batch_embeddings, dim=0, keepdim=True)
-                    loss = F.mse_loss(mean_batch_emb, mean_face_embedding)
+                    #Extract face embeddings from predicted images
+                    pred_face = extract_face_embedding(pred_image)
+                    loss = F.mse_loss(pred_face, org_embs[i])
                     
                     accelerator.backward(loss)
                     optimizer.step()
                     lr_scheduler.step()
-                    optimizer.zero_grad()
-                    
-                    if step % 10 == 0:
-                        print(f"Step {step}, Loss: {loss.item():.4f}, Faces detected: {len(batch_embeddings)}/{pred_image.shape[0]}")
-                else:
-                    print(f"Step {step}: No faces detected, skipping backward pass")
-                    optimizer.zero_grad()
+                    optimizer.zero_grad()                   
                 
                 global_step += 1
                 progress_bar.update(1)
