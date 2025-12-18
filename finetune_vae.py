@@ -985,6 +985,7 @@ def tokenize_prompt(tokenizer, prompt):
 # Adapted from pipelines.StableDiffusionXLPipeline.encode_prompt
 def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
     prompt_embeds_list = []
+    pooled_prompt_embeds = None
 
     for i, text_encoder in enumerate(text_encoders):
         if tokenizers is not None:
@@ -998,8 +999,10 @@ def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
             text_input_ids.to(text_encoder.device), output_hidden_states=True, return_dict=False
         )
 
-        # We are only ALWAYS interested in the pooled output of the final text encoder
-        pooled_prompt_embeds = prompt_embeds[0]
+        # We are only interested in the pooled output of the final text encoder (text_encoder_two)
+        if i == len(text_encoders) - 1:
+            pooled_prompt_embeds = prompt_embeds[0]
+        
         prompt_embeds = prompt_embeds[-1][-2]
         bs_embed, seq_len, _ = prompt_embeds.shape
         prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
@@ -1123,6 +1126,14 @@ def main(args):
     )
     empty_prompt_hidden_states = empty_prompt_hidden_states.to("cuda")
     pooled_empty_prompt_embeds = pooled_empty_prompt_embeds.to("cuda")
+    
+    # Debug: Print shapes immediately after encoding
+    print("\n=== PROMPT ENCODING DEBUG ===")
+    print(f"prompt_hidden_states shape: {prompt_hidden_states.shape}")
+    print(f"pooled_prompt_embeds shape: {pooled_prompt_embeds.shape}")
+    print(f"empty_prompt_hidden_states shape: {empty_prompt_hidden_states.shape}")
+    print(f"pooled_empty_prompt_embeds shape: {pooled_empty_prompt_embeds.shape}")
+    print("============================\n")
 
     # Debug: print shapes to understand what we're working with
     print(f"prompt_hidden_states shape: {prompt_hidden_states.shape}")
