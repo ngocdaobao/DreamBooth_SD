@@ -1175,15 +1175,17 @@ def main(args):
     os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
-    pipeline.scheduler.set_timesteps(
-        num_inference_steps=3,
-        device="cuda"
-    )
     
     for epoch in range(args.num_train_epochs):
         vae.train()
         for step, pose_batch in enumerate(pose_dataloader):
             with accelerator.accumulate(vae):
+                # Reset scheduler for each batch
+                pipeline.scheduler.set_timesteps(
+                    num_inference_steps=3,
+                    device="cuda"
+                )
+                
                 latent_shape = (pose_batch.shape[0], 4, 1024//8, 1024//8)
                 latent = torch.randn(latent_shape, device=pose_batch.device)
 
