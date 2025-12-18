@@ -1181,16 +1181,16 @@ def main(args):
         for step, pose_batch in enumerate(pose_dataloader):
             with accelerator.accumulate(vae):
                 # Reset scheduler for each batch
-                pipeline.scheduler.set_timesteps(
-                    num_inference_steps=3,
+                noise_scheduler.set_timesteps(
+                    num_inference_steps=40,
                     device="cuda"
                 )
                 
                 latent_shape = (pose_batch.shape[0], 4, 1024//8, 1024//8)
                 latent = torch.randn(latent_shape, device=pose_batch.device)
 
-                for i, t in enumerate(pipeline.scheduler.timesteps):
-                    latent_model_input = pipeline.scheduler.scale_model_input(latent, t).half()
+                for i, t in enumerate(noise_scheduler.timesteps):
+                    latent_model_input = noise_scheduler.scale_model_input(latent, t).half()
                     with torch.no_grad():
                     # correct pooled embeds for ControlNet
                         # Repeat embeddings to match batch size if needed
