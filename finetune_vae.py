@@ -1054,7 +1054,7 @@ def main(args):
             T.Resize((1024, 1024)),
             T.ToTensor(),   # converts PIL → Tensor in [0,1]
         ])
-        pose = pose_transform(pose).unsqueeze(0)
+        pose = pose_transform(pose)
         poses.append(pose)
     
     class PoseDataset(Dataset):
