@@ -1171,7 +1171,10 @@ def main(args):
                             t,
                             controlnet_cond=pose_batch.half(),
                             encoder_hidden_states=prompt_hidden_states.half(),
-                            added_cond_kwargs={"text_embeds": prompt_hidden_states.half()},
+                            added_cond_kwargs={
+                                "text_embeds": prompt_hidden_states.half(),
+                                "time_ids": torch.zeros((latent_model_input.shape[0], 6), dtype=prompt_hidden_states.dtype, device=prompt_hidden_states.device)
+                            },
                             return_dict=False
                         )
                         noise_pred = unet(
