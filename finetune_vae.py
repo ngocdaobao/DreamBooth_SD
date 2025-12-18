@@ -1115,7 +1115,7 @@ def main(args):
     # Extract prompt 
     prompt_ids = tokenize_prompt(pipeline.tokenizer, prompt).to("cuda")
     prompt_hidden_states = text_encoder_one(prompt_ids)[0]
-    empty_prompt_ids = tokenize_prompt(pipeline.tokenizer, "").to("cuda")
+    empty_prompt_ids = tokenize_prompt(pipeline.tokenizer, "pose").to("cuda")
     empty_prompt_hidden_states = text_encoder_one(empty_prompt_ids)[0]
 
     face_encoder = FaceAnalysis(
