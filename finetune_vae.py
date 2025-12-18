@@ -1087,7 +1087,7 @@ def main(args):
         )
     except ImportError:
         raise ImportError("To use 8-bit Adam, please install the bitsandbytes library: `pip install bitsandbytes`.")
-
+    num_train_steps = args.max_train_steps
     lr_scheduler = get_scheduler(
         args.lr_scheduler,
         optimizer=optimizer,
