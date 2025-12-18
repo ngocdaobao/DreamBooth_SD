@@ -1117,6 +1117,10 @@ def main(args):
     prompt_hidden_states = text_encoder_one(prompt_ids)[0]
     empty_prompt_ids = tokenize_prompt(pipeline.tokenizer, "pose").to("cuda")
     empty_prompt_hidden_states = text_encoder_one(empty_prompt_ids)[0]
+    
+    # Extract pooled embeddings from text_encoder_two for SDXL
+    prompt_ids_2 = tokenize_prompt(pipeline.tokenizer_2, prompt).to("cuda")
+    pooled_prompt_embeds = text_encoder_two(prompt_ids_2, output_hidden_states=False)[0]
 
     face_encoder = FaceAnalysis(
         name="buffalo_l",  # or mobilenetv2-glint360k
@@ -1172,8 +1176,8 @@ def main(args):
                             controlnet_cond=pose_batch.half(),
                             encoder_hidden_states=prompt_hidden_states.half(),
                             added_cond_kwargs={
-                                "text_embeds": prompt_hidden_states.half(),
-                                "time_ids": torch.zeros((latent_model_input.shape[0], 6), dtype=prompt_hidden_states.dtype, device=prompt_hidden_states.device)
+                                "text_embeds": pooled_prompt_embeds.half(),
+                                "time_ids": torch.zeros((latent_model_input.shape[0], 6), dtype=pooled_prompt_embeds.dtype, device=pooled_prompt_embeds.device)
                             },
                             return_dict=False
                         )
