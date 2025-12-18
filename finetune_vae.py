@@ -1189,13 +1189,13 @@ def main(args):
                     # correct pooled embeds for ControlNet
                         # Repeat embeddings to match batch size if needed
                         batch_size = latent_model_input.shape[0]
-                        controlnet_text_embeds = pooled_empty_prompt_embeds.repeat(batch_size, 1).half()
+                        controlnet_text_embeds = pooled_empty_prompt_embeds.repeat(batch_size, 1)
                         controlnet_time_ids = torch.zeros(
                             (batch_size, 6),
                             dtype=pooled_empty_prompt_embeds.dtype,
                             device=pooled_empty_prompt_embeds.device,
                         )
-                        
+
                         # Debug: print what we're passing
                         if i == 0 and step == 0:
                             print(f"\n=== CONTROLNET INPUT DEBUG (Step {step}, Timestep {i}) ===")
@@ -1213,16 +1213,16 @@ def main(args):
                         }
                     
                         down_res, mid_res = controlnet(
-                            latent_model_input.half(),
+                            latent_model_input,
                             t,
-                            controlnet_cond=pose_batch.half(),
-                            encoder_hidden_states=empty_prompt_hidden_states.half(),  # IMPORTANT
+                            controlnet_cond=pose_batch,
+                            encoder_hidden_states=empty_prompt_hidden_states.repeat(batch_size, 1, 1),
                             added_cond_kwargs=controlnet_added_cond,
                             return_dict=False
                         )
                         
                         # UNet also needs added_cond_kwargs for SDXL
-                        unet_text_embeds = pooled_prompt_embeds.repeat(batch_size, 1).half()
+                        unet_text_embeds = pooled_prompt_embeds.repeat(batch_size, 1)
                         unet_time_ids = torch.zeros(
                             (batch_size, 6),
                             dtype=pooled_prompt_embeds.dtype,
@@ -1235,16 +1235,16 @@ def main(args):
                         }
                         
                         noise_pred = unet(
-                            latent_model_input.half(),
+                            latent_model_input,
                             t,
-                            encoder_hidden_states=prompt_hidden_states.repeat(batch_size, 1, 1).half(),
+                            encoder_hidden_states=prompt_hidden_states.repeat(batch_size, 1, 1),
                             down_block_additional_residuals=down_res,
                             mid_block_additional_residual=mid_res,
                             added_cond_kwargs=unet_added_cond,
                             return_dict=False
                         )[0]
 
-                    latents = pipeline.scheduler.step(noise_pred, t, latent_model_input.half()).prev_sample
+                    latents = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
                 gen_latent_feature = latents
                 gen_output = vae.decode(gen_latent_feature / vae.config.scaling_factor).sample
                 # Save to image
