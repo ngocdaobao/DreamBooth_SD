@@ -1248,10 +1248,10 @@ def main(args):
                             return_dict=False
                         )[0]
 
-                    latents = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
+                    latent = pipeline.scheduler.step(noise_pred, t, latent_model_input).prev_sample
                 
                 # After diffusion is complete, decode and compute loss
-                gen_latent_feature = latents
+                gen_latent_feature = latent
                 gen_output = vae.decode(gen_latent_feature / vae.config.scaling_factor).sample
                 
                 # Save to image and extract face embeddings
