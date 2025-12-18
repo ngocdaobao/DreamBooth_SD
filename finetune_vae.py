@@ -1017,13 +1017,13 @@ def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
 def main(args):
     # ...existing code...
     # Save VAE checkpoint after training
-    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
+    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float32)
     pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
         args.pretrained_model_name_or_path,
         revision=args.revision,
         subfolder="pipeline",
         controlnet=controlnet,
-        torch_dtype=torch.float16,
+        torch_dtype=torch.float32,
         use_auth_token=True,
     )
 
@@ -1153,7 +1153,7 @@ def main(args):
             return None
         face = faces[0]
         embedding = face.embedding
-        embedding = torch.tensor(embedding, dtype=torch.float16)
+        embedding = torch.tensor(embedding, dtype=torch.float32)
         return embedding
        
     
