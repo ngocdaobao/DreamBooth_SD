@@ -453,6 +453,15 @@ def parse_args(input_args=None):
         action="store_true",
         help="Whether to train the text encoder. If set, the text encoder should be float32 precision.",
     )
+
+    parser.add_argument(
+        "--vae_recon_weight",
+        type=float,
+        default=0.0,
+        help=(
+            "Weight for VAE reconstruction MSE loss added to the diffusion loss. Set >0 to train the VAE decoder."
+        ),
+    )
     parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
     )
@@ -1444,6 +1453,7 @@ def main(args):
 
     # Collect VAE decoder parameters (if any were enabled above)
     vae_decoder_parameters = list(filter(lambda p: p.requires_grad, vae.parameters()))
+    logger.info(f"VAE decoder trainable parameters: {len(vae_decoder_parameters)}")
     vae_decoder_parameters_with_lr = None
     if len(vae_decoder_parameters) > 0:
         vae_decoder_parameters_with_lr = {"params": vae_decoder_parameters, "lr": args.learning_rate}
@@ -1795,7 +1805,8 @@ def main(args):
 
         for step, batch in enumerate(train_dataloader):
             with accelerator.accumulate(vae):
-                pixel_values = batch["pixel_values"].to(dtype=vae.dtype)
+                # Ensure pixel values are on the accelerator device and the VAE dtype
+                pixel_values = batch["pixel_values"].to(device=accelerator.device, dtype=vae.dtype)
                 prompts = batch["prompts"]
 
                 # encode batch prompts when custom prompts are provided for each image -
@@ -1810,6 +1821,8 @@ def main(args):
 
                 # Convert images to latent space
                 model_input = vae.encode(pixel_values).latent_dist.sample()
+                # Keep an explicit copy of the latents for optional VAE reconstruction loss
+                orig_latents = model_input.clone().to(device=accelerator.device, dtype=vae.dtype)
 
                 if latents_mean is None and latents_std is None:
                     model_input = model_input * vae.config.scaling_factor
@@ -2003,6 +2016,18 @@ def main(args):
                 if args.with_prior_preservation:
                     # Add the prior loss to the instance loss.
                     loss = loss + args.prior_loss_weight * prior_loss
+
+                # Optional VAE reconstruction loss (enables training the VAE decoder). Uses MSE on pixels.
+                if getattr(args, "vae_recon_weight", 0.0) and args.vae_recon_weight > 0:
+                    try:
+                        recon = vae.decode(orig_latents).sample
+                        recon = recon.to(dtype=pixel_values.dtype, device=pixel_values.device)
+                        recon_loss = F.mse_loss(recon, pixel_values, reduction="mean")
+                        loss = loss + args.vae_recon_weight * recon_loss
+                        logger.debug(f"VAE recon loss: {recon_loss.item():.6f}")
+                    except Exception as e:
+                        logger.exception("Failed to compute VAE reconstruction loss: %s", e)
+
 
                 # --- Face Consistency Loss ---
                 # For each generated image, compute cosine similarity to the mean embedding of all original faces
