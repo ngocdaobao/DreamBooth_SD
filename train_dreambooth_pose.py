@@ -2056,8 +2056,23 @@ def main(args):
                 # total_loss = loss + lambda_face * face_loss
                 # Sanity: ensure loss requires grad otherwise backward will fail with an unhelpful traceback
                 if not getattr(loss, "requires_grad", False):
-                    raise RuntimeError(
-                        "Computed loss does not require grad. Make sure at least one trainable parameter is enabled (e.g., pass --train_unet_lora to train LoRA), or include a loss that depends on trainable modules (e.g., VAE decoder).")
+                    # Gather helpful diagnostic info
+                    unet_lora_tr = sum(1 for p in unet.parameters() if getattr(p, "requires_grad", False))
+                    vae_dec_tr = sum(1 for p in vae.parameters() if getattr(p, "requires_grad", False))
+                    txt1_tr = sum(1 for p in text_encoder_one.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
+                    txt2_tr = sum(1 for p in text_encoder_two.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
+                    msg = (
+                        "Computed loss does not require grad. This means the loss did not depend on any trainable parameters.\n"
+                        f"Trainable parameter counts (unet total): {unet_lora_tr}, (vae decoder total): {vae_dec_tr}, "
+                        f"(text encoder1): {txt1_tr}, (text encoder2): {txt2_tr}.\n"
+                        f"Current flags: --train_unet_lora={args.train_unet_lora}, --vae_recon_weight={getattr(args, 'vae_recon_weight', 0.0)}.\n"
+                    )
+                    if vae_dec_tr > 0 and getattr(args, "vae_recon_weight", 0.0) == 0.0:
+                        msg += "You have enabled VAE decoder parameters to be trainable but the VAE reconstruction loss weight is 0.0; set --vae_recon_weight > 0 to enable a reconstruction loss that depends on the decoder.\n"
+                    if unet_lora_tr == 0 and not args.train_unet_lora:
+                        msg += "UNet LoRA training is disabled (--train_unet_lora not set) so diffusion loss won't produce gradients for the UNet.\n"
+                    msg += "Fix: pass --train_unet_lora, or set --vae_recon_weight > 0 to add a VAE decoder loss."
+                    raise RuntimeError(msg)
                 accelerator.backward(loss)
 
                 if accelerator.sync_gradients:
