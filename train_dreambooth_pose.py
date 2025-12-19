@@ -1199,7 +1199,7 @@ def main(args):
         if hasattr(proc, "parameters"):
             for p in proc.parameters():
                 # set requires_grad based on CLI flag --train_unet_lora
-                p.requires_grad = args.train_unet_lora
+                p.requires_grad = False
     if args.train_unet_lora:
         logger.info("UNet LoRA adapter parameters set to requires_grad=True (training enabled)")
     else:
