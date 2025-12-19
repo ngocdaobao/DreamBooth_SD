@@ -491,6 +491,15 @@ def parse_args(input_args=None):
             ' `--checkpointing_steps`, or `"latest"` to automatically select the last available checkpoint.'
         ),
     )
+
+    parser.add_argument(
+        "--save_vae",
+        action="store_true",
+        default=False,
+        help=(
+            "If set, save the VAE weights to the output directory (in 'vae/' subfolder) when checkpoints are saved and at the end of training."
+        ),
+    )
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
@@ -677,6 +686,15 @@ def parse_args(input_args=None):
     )
 
     parser.add_argument("--lora_dropout", type=float, default=0.0, help="Dropout probability for LoRA layers")
+
+    parser.add_argument(
+        "--no_unet_lora",
+        action="store_true",
+        default=False,
+        help=(
+            "If set, do not add or load LoRA adapters for the UNet and keep the UNet frozen (no UNet LoRA)."
+        ),
+    )
 
     parser.add_argument(
         "--use_dora",
@@ -1162,14 +1180,10 @@ def main(args):
         variant=args.variant,
     )
 
-    # controlnet = ControlNetModel.from_pretrained(
-    #     "thibaud/controlnet-openpose-sdxl-1.0",
-    #     torch_dtype=torch.float16
-    # )
-
-    adapter = T2IAdapter.from_pretrained(
-    "TencentARC/t2i-adapter-openpose-sdxl-1.0", torch_dtype=torch.float16
-    ).to("cuda")
+    controlnet = ControlNetModel.from_pretrained(
+        "thibaud/controlnet-openpose-sdxl-1.0",
+        torch_dtype=torch.float16
+    )
 
     latents_mean = latents_std = None
     if hasattr(vae.config, "latents_mean") and vae.config.latents_mean is not None:
@@ -1181,8 +1195,19 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
 
-    # We only train the additional adapter LoRA layers
+    unet.load_attn_procs("pytorch_lora_weights.safetensors")
+    #Set lora weight requires grad = False
+    for _, module in unet.attn_processors.items():
+        for param in module.parameters():
+            param.requires_grad = False
+
+    # We only train the additional adapter LoRA layers and the VAE decoder
+    # Freeze entire VAE first, then enable decoder parameters for training
     vae.requires_grad_(False)
+    for name, param in vae.named_parameters():
+        if "decoder" in name:
+            param.requires_grad = True
+
     text_encoder_one.requires_grad_(False)
     text_encoder_two.requires_grad_(False)
     unet.requires_grad_(False)
@@ -1229,51 +1254,52 @@ def main(args):
             raise ValueError("xformers is not available. Make sure it is installed correctly")
 
     if args.gradient_checkpointing:
-        unet.enable_gradient_checkpointing()
+        # unet.enable_gradient_checkpointing()
+        vae.enable_gradient_checkpointing()
         if args.train_text_encoder:
             text_encoder_one.gradient_checkpointing_enable()
             text_encoder_two.gradient_checkpointing_enable()
 
-    def get_lora_config(rank, dropout, use_dora, target_modules):
-        base_config = {
-            "r": rank,
-            "lora_alpha": rank,
-            "lora_dropout": dropout,
-            "init_lora_weights": "gaussian",
-            "target_modules": target_modules,
-        }
-        if use_dora:
-            if is_peft_version("<", "0.9.0"):
-                raise ValueError(
-                    "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
-                )
-            else:
-                base_config["use_dora"] = True
+    # def get_lora_config(rank, dropout, use_dora, target_modules):
+    #     base_config = {
+    #         "r": rank,
+    #         "lora_alpha": rank,
+    #         "lora_dropout": dropout,
+    #         "init_lora_weights": "gaussian",
+    #         "target_modules": target_modules,
+    #     }
+    #     if use_dora:
+    #         if is_peft_version("<", "0.9.0"):
+    #             raise ValueError(
+    #                 "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
+    #             )
+    #         else:
+    #             base_config["use_dora"] = True
 
-        return LoraConfig(**base_config)
+    #     return LoraConfig(**base_config)
 
     # now we will add new LoRA weights to the attention layers
-    unet_target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
-    unet_lora_config = get_lora_config(
-        rank=args.rank,
-        dropout=args.lora_dropout,
-        use_dora=args.use_dora,
-        target_modules=unet_target_modules,
-    )
-    unet.add_adapter(unet_lora_config)
+    # unet_target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
+    # unet_lora_config = get_lora_config(
+    #     rank=args.rank,
+    #     dropout=args.lora_dropout,
+    #     use_dora=args.use_dora,
+    #     target_modules=unet_target_modules,
+    # )
+    # unet.add_adapter(unet_lora_config)
 
     # The text encoder comes from 🤗 transformers, so we cannot directly modify it.
     # So, instead, we monkey-patch the forward calls of its attention-blocks.
-    if args.train_text_encoder:
-        text_target_modules = ["q_proj", "k_proj", "v_proj", "out_proj"]
-        text_lora_config = get_lora_config(
-            rank=args.rank,
-            dropout=args.lora_dropout,
-            use_dora=args.use_dora,
-            target_modules=text_target_modules,
-        )
-        text_encoder_one.add_adapter(text_lora_config)
-        text_encoder_two.add_adapter(text_lora_config)
+    # if args.train_text_encoder:
+    #     text_target_modules = ["q_proj", "k_proj", "v_proj", "out_proj"]
+    #     text_lora_config = get_lora_config(
+    #         rank=args.rank,
+    #         dropout=args.lora_dropout,
+    #         use_dora=args.use_dora,
+    #         target_modules=text_target_modules,
+    #     )
+    #     text_encoder_one.add_adapter(text_lora_config)
+    #     text_encoder_two.add_adapter(text_lora_config)
 
     def unwrap_model(model):
         model = accelerator.unwrap_model(model)
@@ -1288,6 +1314,7 @@ def main(args):
             unet_lora_layers_to_save = None
             text_encoder_one_lora_layers_to_save = None
             text_encoder_two_lora_layers_to_save = None
+            vae_to_save = None
 
             for model in models:
                 if isinstance(model, type(unwrap_model(unet))):
@@ -1300,18 +1327,27 @@ def main(args):
                     text_encoder_two_lora_layers_to_save = convert_state_dict_to_diffusers(
                         get_peft_model_state_dict(model)
                     )
+                elif isinstance(model, type(unwrap_model(vae))):
+                    vae_to_save = model
                 else:
                     raise ValueError(f"unexpected save model: {model.__class__}")
 
                 # make sure to pop weight so that corresponding model is not saved again
                 weights.pop()
 
-            StableDiffusionXLAdapterPipeline.save_lora_weights(
+            StableDiffusionXLControlNetPipeline.save_lora_weights(
                 output_dir,
                 unet_lora_layers=unet_lora_layers_to_save,
                 text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
                 text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save
             )
+
+            if args.save_vae and vae_to_save is not None:
+                vae_unwrapped = unwrap_model(vae_to_save)
+                vae_dir = os.path.join(output_dir, "vae")
+                os.makedirs(vae_dir, exist_ok=True)
+                vae_unwrapped.save_pretrained(vae_dir)
+                logger.info(f"Saved VAE weights to {vae_dir}")
 
     def load_model_hook(models, input_dir):
         unet_ = None
@@ -1337,15 +1373,18 @@ def main(args):
 
         unet_state_dict = {f"{k.replace('unet.', '')}": v for k, v in lora_state_dict.items() if k.startswith("unet.")}
         unet_state_dict = convert_unet_state_dict_to_peft(unet_state_dict)
-        incompatible_keys = set_peft_model_state_dict(unet_, unet_state_dict, adapter_name="default")
-        if incompatible_keys is not None:
-            # check only for unexpected keys
-            unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
-            if unexpected_keys:
-                logger.warning(
-                    f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
-                    f" {unexpected_keys}. "
-                )
+        if not args.no_unet_lora:
+            incompatible_keys = set_peft_model_state_dict(unet_, unet_state_dict, adapter_name="default")
+            if incompatible_keys is not None:
+                # check only for unexpected keys
+                unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
+                if unexpected_keys:
+                    logger.warning(
+                        f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
+                        f" {unexpected_keys}. "
+                    )
+        else:
+            logger.info("Skipping UNet LoRA adapter loading because --no_unet_lora is set")
 
         if args.train_text_encoder:
             # Do we need to call `scale_lora_layers()` here?
@@ -1395,6 +1434,13 @@ def main(args):
 
     # Optimization parameters
     unet_lora_parameters_with_lr = {"params": unet_lora_parameters, "lr": args.learning_rate}
+
+    # Collect VAE decoder parameters (if any were enabled above)
+    vae_decoder_parameters = list(filter(lambda p: p.requires_grad, vae.parameters()))
+    vae_decoder_parameters_with_lr = None
+    if len(vae_decoder_parameters) > 0:
+        vae_decoder_parameters_with_lr = {"params": vae_decoder_parameters, "lr": args.learning_rate}
+
     if args.train_text_encoder:
         # different learning rate for text encoder and unet
         text_lora_parameters_one_with_lr = {
@@ -1414,6 +1460,10 @@ def main(args):
         ]
     else:
         params_to_optimize = [unet_lora_parameters_with_lr]
+
+    # If VAE decoder params exist, add them to the optimizer groups so the decoder is trained
+    if vae_decoder_parameters_with_lr is not None:
+        params_to_optimize.append(vae_decoder_parameters_with_lr) 
 
     # Optimizer creation
     if not (args.optimizer.lower() == "prodigy" or args.optimizer.lower() == "adamw"):
@@ -1594,12 +1644,12 @@ def main(args):
 
     # Prepare everything with our `accelerator`.
     if args.train_text_encoder:
-        unet, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-            unet, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler
+        unet, vae, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            unet, vae, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler
         )
     else:
-        unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-            unet, optimizer, train_dataloader, lr_scheduler
+        unet, vae, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            unet, vae, optimizer, train_dataloader, lr_scheduler
         )
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
@@ -1724,10 +1774,10 @@ def main(args):
     all_embs = np.stack(face_embeddings, axis=0)
     mean_emb = np.mean(all_embs, axis=0)
     mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
-    adapter = globals().get("adapter", None)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
+        vae.train()
         if args.train_text_encoder:
             text_encoder_one.train()
             text_encoder_two.train()
@@ -1808,17 +1858,6 @@ def main(args):
                 else:
                     elems_to_repeat_text_embeds = 1
             
-                # Adapter conditioning: get adapter condition or set to None
-                adapter_condition = None
-                if 'adapter' in globals() and adapter is not None:
-                    # Example: use pose as adapter condition (customize as needed)
-                    try:
-                        pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
-                        adapter_condition = adapter(pose)
-                    except Exception as e:
-                        print(f"[Adapter] Failed to get adapter condition: {e}")
-                        adapter_condition = None
-                
 
                 # Predict the noise residual
                 if not args.train_text_encoder:
@@ -1831,17 +1870,17 @@ def main(args):
                     #ControlNet forward with a random pose from poses   
 
                     prompt_embeds_input = prompt_embeds.repeat(elems_to_repeat_text_embeds, 1, 1)
-                    # pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
-                    # down_res, mid_res = controlnet(
-                    #     noisy_model_input,
-                    #     timesteps,
-                    #     controlnet_cond=pose.to(device=noisy_model_input.device, dtype=noisy_model_input.dtype),
-                    #     encoder_hidden_states=prompt_embeds_input,
-                    #     added_cond_kwargs=unet_added_conditions,
-                    #     return_dict=False,
-                    #     controlnet_guidance_start=0.0,
-                    #     controlnet_guidance_end=0.6,
-                    # )
+                    pose = next(pose_cycle).to(device=accelerator.device, dtype=weight_dtype)
+                    down_res, mid_res = controlnet(
+                        noisy_model_input,
+                        timesteps,
+                        controlnet_cond=pose.to(device=noisy_model_input.device, dtype=noisy_model_input.dtype),
+                        encoder_hidden_states=prompt_embeds_input,
+                        added_cond_kwargs=unet_added_conditions,
+                        return_dict=False,
+                        controlnet_guidance_start=0.0,
+                        controlnet_guidance_end=0.6,
+                    )
 
                     model_pred = unet(
                         inp_noisy_latents if args.do_edm_style_training else noisy_model_input,
@@ -1990,9 +2029,9 @@ def main(args):
 
                 if accelerator.sync_gradients:
                     params_to_clip = (
-                        itertools.chain(unet_lora_parameters, text_lora_parameters_one, text_lora_parameters_two)
+                        itertools.chain(unet_lora_parameters, text_lora_parameters_one, text_lora_parameters_two, vae_decoder_parameters)
                         if args.train_text_encoder
-                        else unet_lora_parameters
+                        else vae_decoder_parameters
                     )
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
 
@@ -2107,6 +2146,13 @@ def main(args):
             peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
             kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
             save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
+
+        if args.save_vae:
+            vae_to_save = unwrap_model(vae)
+            vae_dir = os.path.join(args.output_dir, "vae")
+            os.makedirs(vae_dir, exist_ok=True)
+            vae_to_save.save_pretrained(vae_dir)
+            logger.info(f"Saved final VAE weights to {vae_dir}")
 
         # Final inference
         # Load previous pipeline
