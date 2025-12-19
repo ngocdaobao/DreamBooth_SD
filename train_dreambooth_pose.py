@@ -1198,7 +1198,12 @@ def main(args):
     for _, proc in unet.attn_processors.items():
         if hasattr(proc, "parameters"):
             for p in proc.parameters():
-                p.requires_grad_(False)
+                # set requires_grad based on CLI flag --train_unet_lora
+                p.requires_grad = args.train_unet_lora
+    if args.train_unet_lora:
+        logger.info("UNet LoRA adapter parameters set to requires_grad=True (training enabled)")
+    else:
+        logger.info("UNet LoRA adapter parameters set to requires_grad=False (training disabled)")
 
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
@@ -1789,7 +1794,7 @@ def main(args):
             accelerator.unwrap_model(text_encoder_two).text_model.embeddings.requires_grad_(True)
 
         for step, batch in enumerate(train_dataloader):
-            with accelerator.accumulate(unet):
+            with accelerator.accumulate(vae):
                 pixel_values = batch["pixel_values"].to(dtype=vae.dtype)
                 prompts = batch["prompts"]
 
@@ -2024,7 +2029,10 @@ def main(args):
                 #     face_loss = 0.0
 
                 # total_loss = loss + lambda_face * face_loss
-                # accelerator.backward(total_loss)
+                # Sanity: ensure loss requires grad otherwise backward will fail with an unhelpful traceback
+                if not getattr(loss, "requires_grad", False):
+                    raise RuntimeError(
+                        "Computed loss does not require grad. Make sure at least one trainable parameter is enabled (e.g., pass --train_unet_lora to train LoRA), or include a loss that depends on trainable modules (e.g., VAE decoder).")
                 accelerator.backward(loss)
 
                 if accelerator.sync_gradients:
