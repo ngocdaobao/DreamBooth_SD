@@ -1195,11 +1195,10 @@ def main(args):
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.revision, variant=args.variant
     )
 
-    unet.load_attn_procs("pytorch_lora_weights.safetensors")
-    #Set lora weight requires grad = False
-    for _, module in unet.attn_processors.items():
-        for param in module.parameters():
-            param.requires_grad = False
+    for _, proc in unet.attn_processors.items():
+        if hasattr(proc, "parameters"):
+            for p in proc.parameters():
+                p.requires_grad_(False)
 
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
