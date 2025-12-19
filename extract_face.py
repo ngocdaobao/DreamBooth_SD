@@ -19,14 +19,12 @@ def extract_face_embed(image_path: str):
     faces = app.get(img)
 
     print(f"Detected faces: {len(faces)}")
-    #Crop face and save embedding
-    if len(faces) > 0:
-        #Select face with highest detection score
-        face = max(faces, key=lambda x: x.det_score)
-        bbox = face.bbox.astype(int)
-        face_img  = image.crop(bbox)
-        embedding = face.embedding
-
+    face = faces[0]
+    face = max(faces, key=lambda x: x.det_score)
+    bbox = face.bbox.astype(int)
+    face_img  = image.crop(bbox)
+    embedding = face.embedding
+    face_img.save("extracted_face.jpg")
     return embedding
 
 if __name__ == "__main__":
