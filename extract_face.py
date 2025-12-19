@@ -21,14 +21,12 @@ def extract_face_embed(image_path: str):
     print(f"Detected faces: {len(faces)}")
     #Crop face and save embedding
     if len(faces) > 0:
-        raise NotImplementedError("Multiple faces detected. This function only handles single face extraction.")
+        #Select face with highest detection score
+        face = max(faces, key=lambda x: x.det_score)
+        bbox = face.bbox.astype(int)
+        face_img  = img.crop(bbox)
+        embedding = face.embedding
 
-    face = faces[0]
-    #Save face crop
-    bbox = map(int, face.bbox)
-    face_crop = img.crop(bbox)
-    face_crop.save("extracted_face.jpg")
-    embedding = face.embedding  # shape: (512,)
     return embedding
 
 if __name__ == "__main__":
