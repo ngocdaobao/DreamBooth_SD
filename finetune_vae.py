@@ -1161,6 +1161,8 @@ def main(args):
                     pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
                     pred_image.save(pred_path)
                     pred_face = extract_face_embed(pred_path)
+                    print("Predicted face embedding shape:", pred_face.shape)
+                    print("Original face embedding shape:", org_embs[i].shape)
                     loss = F.mse_loss(pred_face, org_embs[i])
                     
                     accelerator.backward(loss)
