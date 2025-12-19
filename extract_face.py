@@ -12,8 +12,8 @@ app = FaceAnalysis(
 app.prepare(ctx_id=0, det_size=(640, 640))
 
 def extract_face_embed(image_path: str):
-    img = Image.open(image_path).convert("RGB")
-    img = np.array(img)[:, :, ::-1]  # RGB -> BGR
+    image = Image.open(image_path).convert("RGB")
+    img = np.array(image)[:, :, ::-1]  # RGB -> BGR
 
     # Run face analysis
     faces = app.get(img)
@@ -24,7 +24,7 @@ def extract_face_embed(image_path: str):
         #Select face with highest detection score
         face = max(faces, key=lambda x: x.det_score)
         bbox = face.bbox.astype(int)
-        face_img  = img.crop(bbox)
+        face_img  = image.crop(bbox)
         embedding = face.embedding
 
     return embedding
