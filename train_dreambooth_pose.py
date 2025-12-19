@@ -1207,12 +1207,9 @@ def main(args):
     for _, proc in unet.attn_processors.items():
         if hasattr(proc, "parameters"):
             for p in proc.parameters():
-                # set requires_grad based on CLI flag --train_unet_lora
+                # LoRA attention-processor parameters are frozen by default
                 p.requires_grad = False
-    # if args.train_unet_lora:
-    #     logger.info("UNet LoRA adapter parameters set to requires_grad=True (training enabled)")
-    # else:
-    #     logger.info("UNet LoRA adapter parameters set to requires_grad=False (training disabled)")
+    logger.info("UNet LoRA adapter parameters are frozen by default (requires_grad=False). To enable adapter training, modify the script to set their requires_grad=True.")
 
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
@@ -2065,13 +2062,14 @@ def main(args):
                         "Computed loss does not require grad. This means the loss did not depend on any trainable parameters.\n"
                         f"Trainable parameter counts (unet total): {unet_lora_tr}, (vae decoder total): {vae_dec_tr}, "
                         f"(text encoder1): {txt1_tr}, (text encoder2): {txt2_tr}.\n"
-                        f"Current flags: --train_unet_lora={args.train_unet_lora}, --vae_recon_weight={getattr(args, 'vae_recon_weight', 0.0)}.\n"
+                        f"Current flags: --vae_recon_weight={getattr(args, 'vae_recon_weight', 0.0)}.\n"
                     )
                     if vae_dec_tr > 0 and getattr(args, "vae_recon_weight", 0.0) == 0.0:
                         msg += "You have enabled VAE decoder parameters to be trainable but the VAE reconstruction loss weight is 0.0; set --vae_recon_weight > 0 to enable a reconstruction loss that depends on the decoder.\n"
-                    if unet_lora_tr == 0 and not args.train_unet_lora:
-                        msg += "UNet LoRA training is disabled (--train_unet_lora not set) so diffusion loss won't produce gradients for the UNet.\n"
-                    msg += "Fix: pass --train_unet_lora, or set --vae_recon_weight > 0 to add a VAE decoder loss."
+                    msg += (
+                        "Fix: set --vae_recon_weight > 0 to add a VAE decoder loss, or modify the script to enable adapter/UNet parameter training "
+                        "by setting their `requires_grad=True` if you intend to train adapters."
+                    )
                     raise RuntimeError(msg)
                 accelerator.backward(loss)
 
