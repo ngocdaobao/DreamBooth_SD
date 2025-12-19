@@ -1073,6 +1073,7 @@ def main(args):
         img_path = os.path.join(args.instance_data_dir, img)
         if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
             emb = extract_face_embed(img_path)
+            emb = torch.tensor(emb).to(torch.float16)
             face_embeddings.append(emb)
 
 
