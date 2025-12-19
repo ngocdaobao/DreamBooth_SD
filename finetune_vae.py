@@ -1162,9 +1162,31 @@ def main(args):
                     pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
                     pred_image.save(pred_path)
                     pred_face = extract_face_embed(pred_path)
-                    print("Predicted face embedding shape:", pred_face.shape)
-                    print("Original face embedding shape:", org_embs[i].shape)
-                    loss = F.mse_loss(pred_face, org_embs[i])
+
+                    # Ensure predicted embedding is a torch tensor on CUDA with same dtype as originals
+                    if isinstance(pred_face, np.ndarray):
+                        pred_face = torch.tensor(pred_face, device="cuda").half()
+                    elif isinstance(pred_face, torch.Tensor):
+                        pred_face = pred_face.to("cuda").half()
+                    else:
+                        # Fallback: coerce to numpy then tensor
+                        pred_face = torch.tensor(np.array(pred_face), device="cuda").half()
+
+                    # Make sure shapes match (flatten if necessary)
+                    pred_face = pred_face.view(-1)
+                    org_emb = org_embs[i]
+                    org_emb = org_emb.view(-1)
+
+                    print("Predicted face embedding type/shape:", type(pred_face), pred_face.shape)
+                    print("Original face embedding type/shape:", type(org_emb), org_emb.shape)
+
+                    if pred_face.size() != org_emb.size():
+                        try:
+                            pred_face = pred_face.reshape(org_emb.shape)
+                        except Exception:
+                            raise ValueError(f"Embedding shape mismatch: pred {pred_face.shape} vs org {org_emb.shape}")
+
+                    loss = F.mse_loss(pred_face, org_emb)
                     
                     accelerator.backward(loss)
                     optimizer.step()
