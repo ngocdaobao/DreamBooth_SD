@@ -1015,256 +1015,67 @@ def encode_prompt(text_encoders, tokenizers, prompt, text_input_ids_list=None):
 
 
 def main(args):
-    # ...existing code...
-    # Save VAE checkpoint after training
-    controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
-    pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
-        args.pretrained_model_name_or_path,
+    vae = AutoencoderKL.from_pretrained(
+        args.pretrained_vae_model_name_or_path
+        if args.pretrained_vae_model_name_or_path is not None
+        else args.pretrained_model_name_or_path,
+        subfolder="vae",
         revision=args.revision,
-        subfolder="pipeline",
-        controlnet=controlnet,
-        torch_dtype=torch.float16,
-        use_auth_token=True,
+        use_auth_token=True if args.hub_token else None,
     )
 
-    pipeline.load_lora_weights(args.lora_weights)
-    pipeline.to("cuda")
-
-    unet = pipeline.unet
-    text_encoder_one = pipeline.text_encoder
-    text_encoder_two = pipeline.text_encoder_2
-    vae = pipeline.vae
-
-    unet.requires_grad_(False)
-    text_encoder_one.requires_grad_(False)
-    text_encoder_two.requires_grad_(False)
-    vae.requires_grad_(False)
-    controlnet.requires_grad_(False)
-
-    for name, param in vae.named_parameters():
-        if "decoder" in name:
-            param.requires_grad = True
-
-    # Load pose images for ControlNet conditioning
-    pose_path = 'poses'
-    poses = []
-    for img in os.listdir(pose_path):
-        pose = Image.open(os.path.join(pose_path, img)).resize((1024, 1024))
-        poses.append(pose)
-    
-    # Load instance images to encode with VAE
-    instance_images = []
-    image_transform = T.Compose([
-        T.Resize((1024, 1024)),
-        T.ToTensor(),
-        T.Normalize([0.5], [0.5]),  # Normalize to [-1, 1]
-    ])
-    
-    for img_file in os.listdir(args.instance_data_dir):
-        img_path = os.path.join(args.instance_data_dir, img_file)
-        if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-            img = Image.open(img_path).convert('RGB')
-            img_tensor = image_transform(img)
-            instance_images.append(img_tensor)
-    
-    #Crop face of instance images
-    face_embeddings = []
-    for img in os.listdir(args.instance_data_dir):
-        img_path = os.path.join(args.instance_data_dir, img)
-        if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
-            emb = extract_face_embed(img_path)
-            emb = torch.tensor(emb, device=torch.device("cuda")).to(torch.float16)
-            face_embeddings.append(emb)
-
-
-    class FaceEmbedDataset(Dataset):
-        def __init__(self, face_embs):
-            self.face_embs = face_embs
-            # Create all combinations: num_images * num_poses
-            self.length = len(face_embs)
-        def __len__(self):
-            return self.length
-
-        def __getitem__(self, idx):
-            
-            return {
-                'image_face_emb': self.face_embs[idx]
-            }
-
-    prompt = args.instance_prompt
-
-
-    # Initialize Accelerator
-    accelerator = Accelerator(
-        gradient_accumulation_steps=args.gradient_accumulation_steps,
-        mixed_precision=args.mixed_precision if hasattr(args, 'mixed_precision') else None,
-        log_with=args.report_to if hasattr(args, 'report_to') else None,
-        project_config=ProjectConfiguration(project_dir=args.output_dir, logging_dir=os.path.join(args.output_dir, args.logging_dir)),
+    #Create dataset from args.instance_dir to finetune vae decoder
+    dataset = DreamBoothDataset(
+        instance_data_root=args.instance_data_dir,
+        instance_prompt=args.instance_prompt,
+        class_prompt=None,
+        class_data_root=None,
+        size=args.resolution,
+        repeats=1,
+        center_crop=args.center_crop,
     )
 
-    # Use 8-bit AdamW optimizer from bitsandbytes
-    try:
-        import bitsandbytes as bnb
-        optimizer = bnb.optim.AdamW8bit(
-            filter(lambda p: p.requires_grad, vae.parameters()),
-            lr=args.learning_rate,
-            betas=(args.adam_beta1, args.adam_beta2),
-            weight_decay=args.adam_weight_decay,
-            eps=args.adam_epsilon,
-        )
-    except ImportError:
-        raise ImportError("To use 8-bit Adam, please install the bitsandbytes library: `pip install bitsandbytes`.")
-    num_train_steps = args.max_train_steps
-    lr_scheduler = get_scheduler(
-        args.lr_scheduler,
-        optimizer=optimizer,
-        num_warmup_steps=args.lr_warmup_steps,
-        num_training_steps=num_train_steps,
-        power=args.lr_power,
-        num_cycles=args.lr_num_cycles,
-    )
-    face_dataset = FaceEmbedDataset(face_embeddings)
-    face_dataloader = DataLoader(
-        face_dataset,
+    dataloader = DataLoader(
+        dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
+        collate_fn=collate_fn, with_prior_preservation=False,
+        num_workers=args.dataloader_num_workers,
     )
-    # Prepare models, optimizer, dataloader with accelerator
-    vae, optimizer, face_dataloader, lr_scheduler = accelerator.prepare(
-        vae, optimizer, face_dataloader, lr_scheduler
-    )
-    
-    os.makedirs(args.pred_image_dir, exist_ok=True)
-    progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
-    global_step = 0
-    poses = [os.path.join('poses', f) for f in os.listdir('poses')]
-    poses = itertools.cycle(poses)
+
+    #Set decoder to train mode
+    for param in vae.decoder.parameters():
+        param.requires_grad = True
+
+    progesss_bar = tqdm(range(args.max_train_steps), desc="Training VAE Decoder")
     
     vae.train()
-    for epoch in range(args.num_train_epochs):
-        for step, batch in enumerate(face_dataloader):
-            org_embs = batch['image_face_emb'].to("cuda").half()
-            pose_path = next(poses)
-            pose = Image.open(pose_path).resize((1024, 1024)).convert('RGB')
-            with accelerator.accumulate(vae):
-                for i, emb in enumerate(org_embs):
-                    pred_image = pipeline(
-                        prompt=prompt,
-                        image=pose,
-                        num_inference_steps=40,
-                        guidance_scale=7.5,
-                        negative_prompt="lowres, bad anatomy, error body, error hands, missing fingers,",
-                        controlnet_conditioning_scale=1.0,
-                        controlnet_guidance_start=0.0,
-                        controlnet_guidance_end=1.0,
-                    ).images[0]
-
-                    pred_encoded = vae.encode(torch.unsqueeze(transforms.ToTensor()(pred_image).to("cuda").half(), 0) * 2 - 1).latent_dist.sample() * vae.config.scaling_factor
-                    pred_decoded = (vae.decode(pred_encoded / vae.config.scaling_factor).sample)[0]
-                    pred_decode = pred_decoded.clamp(-1, 1) / 2 
-                    pred_decode = (pred_decode*255).round().to(torch.uint8)
-                    pred_decode = pred_decode.permute(1, 2, 0).cpu().numpy()
-                    pred_image = Image.fromarray(pred_decode)
-                    #Extract face embeddings from predicted images
-                    pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
-                    pred_image.save(pred_path)
-                    pred_face = extract_face_embed(pred_path)
-
-                    
-
-                    # Ensure predicted embedding is a torch tensor on CUDA with same dtype as originals
-                    if isinstance(pred_face, np.ndarray):
-                        pred_face = torch.tensor(pred_face, device="cuda").half()
-                    elif isinstance(pred_face, torch.Tensor):
-                        pred_face = pred_face.to("cuda").half()
-                    else:
-                        # Fallback: coerce to numpy then tensor
-                        pred_face = torch.tensor(np.array(pred_face), device="cuda").half()
-
-                    # Make sure shapes match (flatten if necessary)
-                    pred_face = pred_face.view(-1)
-                    org_emb = org_embs[i]
-                    org_emb = org_emb.view(-1)
-
-                    print("Predicted face embedding type/shape:", type(pred_face), pred_face.shape)
-                    print("Original face embedding type/shape:", type(org_emb), org_emb.shape)
-
-                    if pred_face.size() != org_emb.size():
-                        try:
-                            pred_face = pred_face.reshape(org_emb.shape)
-                        except Exception:
-                            raise ValueError(f"Embedding shape mismatch: pred {pred_face.shape} vs org {org_emb.shape}")
-                    loss = F.mse_loss(pred_face, org_emb)
-                    
-                    accelerator.backward(loss)
-                    optimizer.step()
-                    lr_scheduler.step()
-                    optimizer.zero_grad()                   
-                
-                global_step += 1
-                progress_bar.update(1)
-                if global_step >= args.max_train_steps:
-                    break
-            if global_step >= args.max_train_steps:
-                break
-        if global_step >= args.max_train_steps:
+    for step, batch in enumerate(dataloader):
+        if step >= args.max_train_steps:
             break
-    if accelerator.is_main_process:
-        vae_to_save = accelerator.unwrap_model(vae)
-        ckpt_path = os.path.join(args.output_dir, "vae_finetuned.pth")
-        torch.save(vae_to_save.state_dict(), ckpt_path)
-        print(f"VAE checkpoint saved to {ckpt_path}")
+        pixel_values = batch["pixel_values"]
+        pixel_values = pixel_values.to(vae.device)
 
-            
+        # Encode images to latents
+        with torch.no_grad():
+            latents = vae.encode(pixel_values).latent_dist.sample()
+            latents = latents * vae.config.scaling_factor
 
-        # for step, pose_batch in enumerate(pose_dataloader):
-        #     pose_batch = pose_batch.to("cuda")
+        # Decode latents
+        reconstructed = vae.decode(latents).sample
 
-        #     # --- Feature extraction from UNet, conditioned on prompt and pose (via ControlNet) ---
-        #     for i, t in enumerate(pipeline.scheduler.timesteps):
-        #         features = {}
-        #         def save_hook(name):
-        #             def hook(module, input, output):
-        #                 features[name] = output
-        #             return hook
+        # Compute reconstruction loss
+        loss = F.mse_loss(reconstructed, pixel_values)
 
-        #         # Register hook to a layer of interest (e.g., first down block)
-        #         handles = []
-        #         handles.append(unet.down_blocks[0].register_forward_hook(save_hook('down_block_0')))
+        loss.backward()
+        vae.decoder_optimizer.step()
+        vae.decoder_optimizer.zero_grad()
 
-        #         # Prepare latent input (random for demonstration)
-        #         latent_shape = (pose_batch.shape[0], 4, 1024 // 8, 1024 // 8)
-        #         dummy_latent = torch.randn(latent_shape, device="cuda")
-
-        #         # Encode prompt
-        #         encoder_hidden_states = prompt_hidden_states
-
-        #         # Encode pose using controlnet
-        #         with torch.no_grad():
-        #             down_res, mid_res = controlnet(
-        #                 dummy_latent,
-        #                 t,
-        #                 controlnet_cond=pose_batch,
-        #                 encoder_hidden_states=encoder_hidden_states,
-        #                 return_dict=False,
-        #             )
-
-        #             # UNet forward, conditioned on prompt and pose (via controlnet residuals)
-        #             _ = unet(
-        #                 dummy_latent,
-        #                 t,
-        #                 encoder_hidden_states,
-        #                 down_block_additional_residuals=down_res,
-        #                 mid_block_additional_residual=mid_res,
-        #                 return_dict=False,
-        #             )
-
-        #         # Now 'features' dict contains the outputs of hooked layers
-        #         print(f"Step {step}, Timestep {t}, Down Block 0 Feature Shape: {features['down_block_0'].shape}")
-
-        #         # Remove hooks after use
-        #         for h in handles:
-        #             h.remove()
+        progesss_bar.update(1)
+        progesss_bar.set_postfix({"loss": loss.item()})
+    
+    # Save the finetuned VAE model
+    vae.save_pretrained(f'{args.output_dir}/vae_finetuned.pth')
 
 
 if __name__ == "__main__":
