@@ -1752,27 +1752,27 @@ def main(args):
     
     pose_cycle = itertools.cycle(poses)
 
-    # Extract embedding face in input using lightweight face encoder
-    face_encoder = FaceAnalysis(
-        name="buffalo_l",  # or mobilenetv2-glint360k
-        providers=["CUDAExecutionProvider"]
-    )
-    face_encoder.prepare(ctx_id=0)
-    # Precompute embeddings for all input faces (assuming one face per image)
-    face_embeddings = []
-    for face in os.listdir(args.instance_data_dir):
-        face_path = os.path.join(args.instance_data_dir, face)
-        try:
-            face_img = Image.open(face_path).convert('RGB')
-            face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
-            emb = face_encoder.get(face_np)[0].embedding
-            face_embeddings.append(emb)
-        except Exception as e:
-            print(f"[Face Consistency] Failed to process {face_path}: {e}")
-            continue
-    all_embs = np.stack(face_embeddings, axis=0)
-    mean_emb = np.mean(all_embs, axis=0)
-    mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
+    # # Extract embedding face in input using lightweight face encoder
+    # face_encoder = FaceAnalysis(
+    #     name="buffalo_l",  # or mobilenetv2-glint360k
+    #     providers=["CUDAExecutionProvider"]
+    # )
+    # face_encoder.prepare(ctx_id=0)
+    # # Precompute embeddings for all input faces (assuming one face per image)
+    # face_embeddings = []
+    # for face in os.listdir(args.instance_data_dir):
+    #     face_path = os.path.join(args.instance_data_dir, face)
+    #     try:
+    #         face_img = Image.open(face_path).convert('RGB')
+    #         face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
+    #         emb = face_encoder.get(face_np)[0].embedding
+    #         face_embeddings.append(emb)
+    #     except Exception as e:
+    #         print(f"[Face Consistency] Failed to process {face_path}: {e}")
+    #         continue
+    # all_embs = np.stack(face_embeddings, axis=0)
+    # mean_emb = np.mean(all_embs, axis=0)
+    # mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
@@ -1876,9 +1876,7 @@ def main(args):
                         controlnet_cond=pose.to(device=noisy_model_input.device, dtype=noisy_model_input.dtype),
                         encoder_hidden_states=prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
-                        return_dict=False,
-                        controlnet_guidance_start=0.0,
-                        controlnet_guidance_end=0.6,
+                        return_dict=False
                     )
 
                     model_pred = unet(
