@@ -1077,25 +1077,22 @@ def main(args):
 
 
     class PairedDataset(Dataset):
-        def __init__(self, poses, images, face_embs):
+        def __init__(self, poses, face_embs):
             self.poses = poses
-            self.images = images
             self.face_embs = face_embs
             # Create all combinations: num_images * num_poses
-            self.length = len(poses) * len(images)
-
+            self.length = len(poses) * len(face_embs)
         def __len__(self):
             return self.length
 
         def __getitem__(self, idx):
             # Map linear index to (image_idx, pose_idx)
-            image_idx = idx % len(self.images)
-            pose_idx = idx // len(self.images)
+            face_idx = idx % len(self.face_embs)
+            pose_idx = idx // len(self.face_embs)
             
             return {
                 'pose': self.poses[pose_idx],
-                'image': self.images[image_idx],
-                'image_face_emb': self.face_embs[image_idx]
+                'image_face_emb': self.face_embs[face_idx]
             }
 
     prompt = args.instance_prompt
@@ -1147,7 +1144,6 @@ def main(args):
     
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(paired_dataloader):
-            org_imgs = batch['image'].to("cuda").half()
             poses = batch['pose']
             org_embs = batch['image_face_emb'].to("cuda").half()
 
