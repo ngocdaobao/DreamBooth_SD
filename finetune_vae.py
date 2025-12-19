@@ -1076,23 +1076,18 @@ def main(args):
             face_embeddings.append(emb)
 
 
-    class PairedDataset(Dataset):
-        def __init__(self, poses, face_embs):
-            self.poses = poses
+    class FaceEmbedDataset(Dataset):
+        def __init__(self, face_embs):
             self.face_embs = face_embs
             # Create all combinations: num_images * num_poses
-            self.length = len(poses) * len(face_embs)
+            self.length = len(face_embs)
         def __len__(self):
             return self.length
 
         def __getitem__(self, idx):
-            # Map linear index to (image_idx, pose_idx)
-            face_idx = idx % len(self.face_embs)
-            pose_idx = idx // len(self.face_embs)
             
             return {
-                'pose': self.poses[pose_idx],
-                'image_face_emb': self.face_embs[face_idx]
+                'image_face_emb': self.face_embs[idx]
             }
 
     prompt = args.instance_prompt
@@ -1127,28 +1122,30 @@ def main(args):
         power=args.lr_power,
         num_cycles=args.lr_num_cycles,
     )
-    paired_dataset = PairedDataset(poses, face_embeddings)
-    paired_dataloader = DataLoader(
-        paired_dataset,
+    face_dataset = FaceEmbedDataset(face_embeddings)
+    face_dataloader = DataLoader(
+        face_dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
     )
     # Prepare models, optimizer, dataloader with accelerator
-    vae, optimizer, paired_dataloader, lr_scheduler = accelerator.prepare(
-        vae, optimizer, paired_dataloader, lr_scheduler
+    vae, optimizer, face_dataloader, lr_scheduler = accelerator.prepare(
+        vae, optimizer, face_dataloader, lr_scheduler
     )
     
     os.makedirs(args.pred_image_dir, exist_ok=True)
     progress_bar = tqdm(range(0, args.max_train_steps), desc="Training VAE Decoder")
     global_step = 0
+    poses = [os.path.join('poses', f) for f in os.listdir('poses')]
+    poses = itertools.cycle(poses)
     
     for epoch in range(args.num_train_epochs):
-        for step, batch in enumerate(paired_dataloader):
-            poses = batch['pose']
+        for step, batch in enumerate(face_dataloader):
             org_embs = batch['image_face_emb'].to("cuda").half()
-
+            pose_path = next(poses)
+            pose = Image.open(pose_path).resize((1024, 1024)).convert('RGB')
             with accelerator.accumulate(vae):
-                for i, pose in enumerate(poses):
+                for i, emb in enumerate(org_embs):
                     pred_image = pipeline(
                         prompt=prompt,
                         image=pose,
@@ -1162,7 +1159,7 @@ def main(args):
 
                     #Extract face embeddings from predicted images
                     pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
-                    pred_face.save(pred_path)
+                    pred_image.save(pred_path)
                     pred_face = extract_face_embed(pred_path)
                     loss = F.mse_loss(pred_face, org_embs[i])
                     
