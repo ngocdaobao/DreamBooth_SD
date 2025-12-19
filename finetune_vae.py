@@ -1127,7 +1127,7 @@ def main(args):
         power=args.lr_power,
         num_cycles=args.lr_num_cycles,
     )
-    paired_dataset = PairedDataset(poses, instance_images, face_embeddings)
+    paired_dataset = PairedDataset(poses, face_embeddings)
     paired_dataloader = DataLoader(
         paired_dataset,
         batch_size=args.train_batch_size,
