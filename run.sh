@@ -46,7 +46,7 @@ python train_dreambooth_pose.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
   --instance_data_dir="dataset/${class_token}" \
   --class_data_dir="${class_token}_class_images" \
-  --output_dir="${class_token}_vae_model" \
+  --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token} posing" \
   --num_class_images=20 \

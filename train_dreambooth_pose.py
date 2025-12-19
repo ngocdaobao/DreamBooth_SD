@@ -2190,36 +2190,36 @@ def main(args):
                 )
 
     # Save the lora layers
-    accelerator.wait_for_everyone()
-    if accelerator.is_main_process:
-        unet = unwrap_model(unet)
-        unet = unet.to(torch.float32)
-        unet_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    # accelerator.wait_for_everyone()
+    # if accelerator.is_main_process:
+    #     unet = unwrap_model(unet)
+    #     unet = unet.to(torch.float32)
+    #     unet_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
 
-        if args.train_text_encoder:
-            text_encoder_one = unwrap_model(text_encoder_one)
-            text_encoder_lora_layers = convert_state_dict_to_diffusers(
-                get_peft_model_state_dict(text_encoder_one.to(torch.float32))
-            )
-            text_encoder_two = unwrap_model(text_encoder_two)
-            text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
-                get_peft_model_state_dict(text_encoder_two.to(torch.float32))
-            )
-        else:
-            text_encoder_lora_layers = None
-            text_encoder_2_lora_layers = None
+    #     if args.train_text_encoder:
+    #         text_encoder_one = unwrap_model(text_encoder_one)
+    #         text_encoder_lora_layers = convert_state_dict_to_diffusers(
+    #             get_peft_model_state_dict(text_encoder_one.to(torch.float32))
+    #         )
+    #         text_encoder_two = unwrap_model(text_encoder_two)
+    #         text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
+    #             get_peft_model_state_dict(text_encoder_two.to(torch.float32))
+    #         )
+    #     else:
+    #         text_encoder_lora_layers = None
+    #         text_encoder_2_lora_layers = None
 
-        StableDiffusionXLPipeline.save_lora_weights(
-            save_directory=args.output_dir,
-            unet_lora_layers=unet_lora_layers,
-            text_encoder_lora_layers=text_encoder_lora_layers,
-            text_encoder_2_lora_layers=text_encoder_2_lora_layers,
-        )
-        if args.output_kohya_format:
-            lora_state_dict = load_file(f"{args.output_dir}/pytorch_lora_weights.safetensors")
-            peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
-            kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
-            save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
+    #     StableDiffusionXLPipeline.save_lora_weights(
+    #         save_directory=args.output_dir,
+    #         unet_lora_layers=unet_lora_layers,
+    #         text_encoder_lora_layers=text_encoder_lora_layers,
+    #         text_encoder_2_lora_layers=text_encoder_2_lora_layers,
+    #     )
+    #     if args.output_kohya_format:
+    #         lora_state_dict = load_file(f"{args.output_dir}/pytorch_lora_weights.safetensors")
+    #         peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
+    #         kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
+    #         save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
 
         if args.save_vae:
             vae_to_save = unwrap_model(vae)
