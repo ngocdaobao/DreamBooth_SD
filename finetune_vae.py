@@ -1073,7 +1073,7 @@ def main(args):
         img_path = os.path.join(args.instance_data_dir, img)
         if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
             emb = extract_face_embed(img_path)
-            emb = torch.tensor(emb).to(torch.float16)
+            emb = torch.tensor(emb, device=torch.device("cuda")).to(torch.float16)
             face_embeddings.append(emb)
 
 
@@ -1140,6 +1140,7 @@ def main(args):
     poses = [os.path.join('poses', f) for f in os.listdir('poses')]
     poses = itertools.cycle(poses)
     
+    vae.train()
     for epoch in range(args.num_train_epochs):
         for step, batch in enumerate(face_dataloader):
             org_embs = batch['image_face_emb'].to("cuda").half()
@@ -1158,10 +1159,18 @@ def main(args):
                         controlnet_guidance_end=1.0,
                     ).images[0]
 
+                    pred_encoded = vae.encode(torch.unsqueeze(transforms.ToTensor()(pred_image).to("cuda").half(), 0) * 2 - 1).latent_dist.sample() * vae.config.scaling_factor
+                    pred_decoded = (vae.decode(pred_encoded / vae.config.scaling_factor).sample)[0]
+                    pred_decode = pred_decoded.clamp(-1, 1) / 2 
+                    pred_decode = (pred_decode*255).round().to(torch.uint8)
+                    pred_decode = pred_decode.permute(1, 2, 0).cpu().numpy()
+                    pred_image = Image.fromarray(pred_decode)
                     #Extract face embeddings from predicted images
                     pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
                     pred_image.save(pred_path)
                     pred_face = extract_face_embed(pred_path)
+
+                    
 
                     # Ensure predicted embedding is a torch tensor on CUDA with same dtype as originals
                     if isinstance(pred_face, np.ndarray):
@@ -1185,7 +1194,6 @@ def main(args):
                             pred_face = pred_face.reshape(org_emb.shape)
                         except Exception:
                             raise ValueError(f"Embedding shape mismatch: pred {pred_face.shape} vs org {org_emb.shape}")
-
                     loss = F.mse_loss(pred_face, org_emb)
                     
                     accelerator.backward(loss)
