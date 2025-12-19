@@ -1200,10 +1200,10 @@ def main(args):
             for p in proc.parameters():
                 # set requires_grad based on CLI flag --train_unet_lora
                 p.requires_grad = False
-    if args.train_unet_lora:
-        logger.info("UNet LoRA adapter parameters set to requires_grad=True (training enabled)")
-    else:
-        logger.info("UNet LoRA adapter parameters set to requires_grad=False (training disabled)")
+    # if args.train_unet_lora:
+    #     logger.info("UNet LoRA adapter parameters set to requires_grad=True (training enabled)")
+    # else:
+    #     logger.info("UNet LoRA adapter parameters set to requires_grad=False (training disabled)")
 
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
