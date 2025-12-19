@@ -54,7 +54,7 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
-from insightface.app import FaceAnalysis
+from extract_face import extract_face_embed
 
 # from metrics import im2im, im2prompt
 
@@ -1066,29 +1066,16 @@ def main(args):
             img = Image.open(img_path).convert('RGB')
             img_tensor = image_transform(img)
             instance_images.append(img_tensor)
-
-    face_encoder = FaceAnalysis(
-        name="buffalo_l",  # or mobilenetv2-glint360k
-        providers=["CUDAExecutionProvider"]
-    )
-
-    def extract_face_embedding(img: Image) -> torch.tensor: #detect face in img as np array then extract embedding of face
-        # PIL -> OpenCV BGR
-        img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-
-        faces = face_encoder.get(img)
-        face = faces[0]
-        return face.embedding
     
     #Crop face of instance images
     face_embeddings = []
-    for face in os.listdir(args.instance_data_dir):
-        face_path = os.path.join(args.instance_data_dir, face)
-        face_img = Image.open(face_path)
-        emb = extract_face_embedding(face_img)
-        face_embeddings.append(emb)
-    
-    # Pair poses with instance images
+    for img in os.listdir(args.instance_data_dir):
+        img_path = os.path.join(args.instance_data_dir, img)
+        if img_path.lower().endswith(('.png', '.jpg', '.jpeg')):
+            emb = extract_face_embed(img_path)
+            face_embeddings.append(emb)
+
+
     class PairedDataset(Dataset):
         def __init__(self, poses, images, face_embs):
             self.poses = poses
@@ -1178,7 +1165,9 @@ def main(args):
                     ).images[0]
 
                     #Extract face embeddings from predicted images
-                    pred_face = extract_face_embedding(pred_image)
+                    pred_path = os.path.join(args.pred_image_dir, f"pred_{global_step}_{i}.png")
+                    pred_face.save(pred_path)
+                    pred_face = extract_face_embed(pred_path)
                     loss = F.mse_loss(pred_face, org_embs[i])
                     
                     accelerator.backward(loss)
