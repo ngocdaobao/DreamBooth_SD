@@ -2016,14 +2016,42 @@ def main(args):
 
                 # Optional VAE reconstruction loss (enables training the VAE decoder). Uses MSE on pixels.
                 if getattr(args, "vae_recon_weight", 0.0) and args.vae_recon_weight > 0:
+                    # Do not silently swallow errors here — fail fast with diagnostics so we know why grad isn't flowing
                     try:
                         recon = vae.decode(orig_latents).sample
                         recon = recon.to(dtype=pixel_values.dtype, device=pixel_values.device)
                         recon_loss = F.mse_loss(recon, pixel_values, reduction="mean")
+
+                        # Diagnostics
+                        recon_info = {
+                            "recon_requires_grad": bool(getattr(recon, "requires_grad", False)),
+                            "recon_dtype": str(recon.dtype),
+                            "recon_device": str(recon.device),
+                            "pixel_dtype": str(pixel_values.dtype),
+                            "pixel_device": str(pixel_values.device),
+                        }
+                        dec_trainable = [n for n, p in vae.named_parameters() if "decoder" in n and p.requires_grad]
+                        logger.info(
+                            "VAE recon diagnostics: %s; trainable decoder params: %d",
+                            recon_info,
+                            len(dec_trainable),
+                        )
+
+                        # Attach and validate
                         loss = loss + args.vae_recon_weight * recon_loss
-                        logger.debug(f"VAE recon loss: {recon_loss.item():.6f}")
+
+                        if not getattr(recon_loss, "requires_grad", False):
+                            # include diagnostics in the raised error for immediate feedback
+                            raise RuntimeError(
+                                "VAE reconstruction loss computed but does not require grad. "
+                                f"Recon diagnostics: {recon_info}; trainable_decoder_params={len(dec_trainable)}. "
+                                "Ensure VAE decoder params have requires_grad=True and the decoder forward did not run under torch.no_grad()."
+                            )
+
+                        logger.debug("VAE recon loss: %f (requires_grad=%s)", recon_loss.item(), recon_loss.requires_grad)
                     except Exception as e:
-                        logger.exception("Failed to compute VAE reconstruction loss: %s", e)
+                        # Re-raise with context so we don't silently ignore decoder problems
+                        raise RuntimeError(f"Failed to compute VAE reconstruction loss: {e}") from e
 
 
                 # --- Face Consistency Loss ---
