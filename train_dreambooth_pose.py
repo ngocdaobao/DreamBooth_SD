@@ -457,7 +457,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--vae_recon_weight",
         type=float,
-        default=0.0,
+        default=0.5,
         help=(
             "Weight for VAE reconstruction MSE loss added to the diffusion loss. Set >0 to train the VAE decoder."
         ),
