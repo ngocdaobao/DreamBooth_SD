@@ -54,7 +54,6 @@ from torchvision.transforms.functional import crop
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
-from extract_face import extract_face_embed
 
 # from metrics import im2im, im2prompt
 
@@ -1039,7 +1038,7 @@ def main(args):
         dataset,
         batch_size=args.train_batch_size,
         shuffle=True,
-        collate_fn=collate_fn, with_prior_preservation=False,
+        collate_fn=collate_fn, 
         num_workers=args.dataloader_num_workers,
     )
 
