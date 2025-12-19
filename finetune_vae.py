@@ -1042,20 +1042,39 @@ def main(args):
         num_workers=args.dataloader_num_workers,
     )
 
-    #Set decoder to train mode
-    for param in vae.decoder.parameters():
-        param.requires_grad = True
+    # Prepare Accelerator
+    if args.seed is not None:
+        set_seed(args.seed)
+    accelerator_project_config = ProjectConfiguration(project_dir=args.output_dir, logging_dir=Path(args.output_dir, getattr(args, 'logging_dir', 'logs')))
+    accelerator = Accelerator(mixed_precision=args.mixed_precision, gradient_accumulation_steps=args.gradient_accumulation_steps, log_with=args.report_to, project_config=accelerator_project_config)
+
+    # Set decoder to train mode and collect trainable parameters
+    for name, param in vae.named_parameters():
+        if "decoder" in name:
+            param.requires_grad = True
+
+    decoder_parameters = [p for n, p in vae.named_parameters() if "decoder" in n and getattr(p, "requires_grad", False)]
+    if len(decoder_parameters) == 0:
+        raise RuntimeError("No trainable VAE decoder parameters found. Make sure decoder parameters are un-frozen before training.")
+
+    optimizer = torch.optim.AdamW(decoder_parameters, lr=args.learning_rate)
+
+    # Prepare model, optimizer, dataloader with accelerator
+    vae, optimizer, dataloader = accelerator.prepare(vae, optimizer, dataloader)
 
     progesss_bar = tqdm(range(args.max_train_steps), desc="Training VAE Decoder")
-    
+
     vae.train()
+    global_step = 0
     for step, batch in enumerate(dataloader):
         if step >= args.max_train_steps:
             break
-        pixel_values = batch["pixel_values"]
-        pixel_values = pixel_values.to(vae.device)
 
-        # Encode images to latents
+        # Move inputs to the accelerator device
+        # Ensure inputs are on the accelerator device and use float32 for stability
+        pixel_values = batch["pixel_values"].to(device=accelerator.device, dtype=torch.float32)
+
+        # Encode images to latents (encoder frozen by default, run with no grad)
         with torch.no_grad():
             latents = vae.encode(pixel_values).latent_dist.sample()
             latents = latents * vae.config.scaling_factor
@@ -1066,15 +1085,26 @@ def main(args):
         # Compute reconstruction loss
         loss = F.mse_loss(reconstructed, pixel_values)
 
-        loss.backward()
-        vae.decoder_optimizer.step()
-        vae.decoder_optimizer.zero_grad()
+        # Backprop via accelerator
+        accelerator.backward(loss)
+        optimizer.step()
+        optimizer.zero_grad()
 
+        global_step += 1
         progesss_bar.update(1)
-        progesss_bar.set_postfix({"loss": loss.item()})
-    
-    # Save the finetuned VAE model
-    vae.save_pretrained(f'{args.output_dir}/vae_finetuned.pth')
+        progesss_bar.set_postfix({"loss": loss.item(), "step": global_step})
+
+        if global_step >= args.max_train_steps:
+            break
+
+    # Save the finetuned VAE model (only on main process)
+    accelerator.wait_for_everyone()
+    if accelerator.is_main_process:
+        vae_to_save = accelerator.unwrap_model(vae)
+        out_dir = os.path.join(args.output_dir, "vae_finetuned")
+        os.makedirs(out_dir, exist_ok=True)
+        vae_to_save.save_pretrained(out_dir)
+        logger.info(f"Saved finetuned VAE to {out_dir}")
 
 
 if __name__ == "__main__":
