@@ -1235,7 +1235,10 @@ def main(args):
     text_encoder_one.to(accelerator.device, dtype=weight_dtype)
     text_encoder_two.to(accelerator.device, dtype=weight_dtype)
 
-    # controlnet.to(accelerator.device, dtype=weight_dtype)
+    # Move ControlNet to the same device to avoid device mismatch during forward
+    controlnet.to(accelerator.device, dtype=weight_dtype)
+    # Ensure ControlNet is not trainable (we only train LoRA / VAE decoder by default)
+    controlnet.requires_grad_(False)
     # controlnet.config.global_pool_conditions = True
 
     if args.enable_xformers_memory_efficient_attention:
@@ -1884,8 +1887,8 @@ def main(args):
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
-                        # down_block_additional_residuals=down_res,
-                        # mid_block_additional_residual=mid_res,
+                        down_block_additional_residuals=down_res,
+                        mid_block_additional_residual=mid_res,
 
                         return_dict=False,
                     )[0]
@@ -1906,8 +1909,8 @@ def main(args):
                         timesteps,
                         prompt_embeds_input,
                         added_cond_kwargs=unet_added_conditions,
-                        # down_block_additional_residuals=down_res,
-                        # mid_block_additional_residual=mid_res,
+                        down_block_additional_residuals=down_res,
+                        mid_block_additional_residual=mid_res,
                         return_dict=False,
                     )[0]
 
