@@ -32,6 +32,6 @@ def extract_face_embed(image_path: str):
     return embedding
 
 if __name__ == "__main__":
-    embedding = extract_face_embed("dataset\girl\01.jpg")
+    embedding = extract_face_embed("dataset/girl/01.jpg")
     print("Face embedding shape:", embedding.shape)
     
