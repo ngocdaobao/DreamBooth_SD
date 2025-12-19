@@ -60,5 +60,5 @@ python train_dreambooth_pose.py \
   --prior_loss_weight=0.2 \
   --use_8bit_adam \
   --gradient_checkpointing \ 
-  --no_unet_lora 
+ 
 
