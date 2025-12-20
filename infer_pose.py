@@ -30,7 +30,7 @@ pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street'
 negative_prompt = 'identity drift, abnormal body'
-torch.manual_seed(2)
+torch.manual_seed(30)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
@@ -38,7 +38,7 @@ result = pipe(
     num_inference_steps=40,
     guidance_scale=7.5,
 
-    controlnet_conditioning_scale=0.8,
+    controlnet_conditioning_scale=1,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
