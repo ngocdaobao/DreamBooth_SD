@@ -17,9 +17,9 @@ parser.add_argument('--controlnet_ckpt', type=str, default=None, help='Path to t
 parser.add_argument('--controlnet_condition_path', type=str, default=None, help='Path to the ControlNet conditioning image')
 parser.add_argument('--vae_ckpt', type=str, default=None, help='Path to the VAE checkpoint')
 parser.add_argument('--seed', type=int, default=42, help='Random seed for inference')
-parser.add_argument('--num_inference_steps', type=int, default=40, help='Number of inference steps')
+parser.add_argument('--num_inference_steps', type=int, default=30, help='Number of inference steps')
 parser.add_argument('--unique_token', type=str, default='sks', help='Unique token used in DreamBooth training')
-parser.add_argument('--num_per_prompt', type=int, default=10, help='Number of images to generate per prompt')
+parser.add_argument('--num_per_prompt', type=int, default=20, help='Number of images to generate per prompt')
 
 args = parser.parse_args()
 
@@ -38,7 +38,7 @@ prompt_list = {
 # '10':'a {0} {1} on top of a purple rug in a forest'.format(unique_token, class_token),
 # '11':'a {0} {1} with a wheat field in the background'.format(unique_token, class_token),
 # '12':'a {0} {1} with a tree and autumn leaves in the background'.format(unique_token, class_token),
-# '13':'a {0} {1} with the Eiffel Tower in the background'.format(unique_token, class_token),
+'13':'a {0} {1} with the Eiffel Tower in the background'.format(unique_token, class_token),
 # '14':'a {0} {1} floating on top of water'.format(unique_token, class_token),
 # '15':'a {0} {1} floating in an ocean of milk'.format(unique_token, class_token),
 # '16':'a {0} {1} on top of green grass with sunflowers around it'.format(unique_token, class_token),
@@ -52,7 +52,7 @@ prompt_list = {
 # '24':'a wet {0} {1}'.format(unique_token, class_token),
 # '25':'a cube shaped {0} {1}'.format(unique_token, class_token),
 # '26':'a {0} {1} pouring tea'.format(unique_token, class_token),
-'27':'a transparent {0} {1} within milk inside'.format(unique_token, class_token),
+# '27':'a transparent {0} {1} within milk inside'.format(unique_token, class_token),
 # '28':'a {0} {1} floating in the sea'.format(unique_token, class_token),
 }
 
