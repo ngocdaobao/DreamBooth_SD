@@ -12,7 +12,7 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
     use_safetensors=True,
 )
 
-pipe.load_lora_weights(lora_path)
+pipe.load_lora_weights('pytorch_lora_weights.safetensors')
 pipe.to('cuda')
 
 torch.manual_seed(23)
