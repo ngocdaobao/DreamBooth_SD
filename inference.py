@@ -3,6 +3,7 @@ import torch
 # import gdown
 import argparse
 import os
+from PIL import Image
 
 
 parser = argparse.ArgumentParser()
@@ -13,6 +14,7 @@ parser.add_argument('--use_controlnet', action='store_true', help='Whether to us
 parser.add_argument('--use_vae_finetuned', action='store_true', help='Whether to use finetuned VAE')
 parser.add_argument('--class_token', type=str)
 parser.add_argument('--controlnet_ckpt', type=str, default=None, help='Path to the ControlNet checkpoint')
+parser.add_argument('--controlnet_condition_path', type=str, default=None, help='Path to the ControlNet conditioning image')
 parser.add_argument('--vae_ckpt', type=str, default=None, help='Path to the VAE checkpoint')
 parser.add_argument('--seed', type=int, default=42, help='Random seed for inference')
 parser.add_argument('--num_inference_steps', type=int, default=40, help='Number of inference steps')
@@ -110,7 +112,9 @@ for idx, prompt in prompt_list.items():
         torch.manual_seed(set_seed)
 
         if args.use_controlnet:
-            continue
+            if args.controlnet_condition_path is None:
+                raise ValueError("Please provide --controlnet_condition_path when using ControlNet")
+            
         else:
             result = pipeline(
                 prompt=prompt,
