@@ -28,15 +28,15 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a photo of sks girl in Paris street, high quality high resolution'
-negative_prompt = 'identity drift, abnormal body, blurry, low quality, deformed, disfigured, poorly drawn, mutation, mutated, ugly, blurry, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck'
+prompt = 'a sks girl in Paris street,high resolution'
+negative_prompt = 'identity drift, blurry'
 torch.manual_seed(10)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
-    guidance_scale=7.5,
+    guidance_scale=8.5,
 
     controlnet_conditioning_scale=1.0,
     control_guidance_start=0.0,   # 🔑 start pose late
