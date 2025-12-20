@@ -12,10 +12,10 @@ lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
 print("Load VAE from:", vae_path)
-vae = AutoencoderKL.from_single_file(
-    vae_path,
-    torch_dtype=torch.float16,
-)
+# vae = AutoencoderKL.from_single_file(
+#     vae_path,
+#     torch_dtype=torch.float16,
+# )
 
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
@@ -28,7 +28,7 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a photo of sks girl in Paris street'
+prompt = 'a photo of sks girl in Paris street, high quality'
 negative_prompt = 'identity drift, abnormal body, blurry'
 torch.manual_seed(30)
 result = pipe(
