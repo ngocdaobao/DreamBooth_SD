@@ -48,7 +48,7 @@ python train_dreambooth_sdxl_lora.py \
   --class_data_dir="${class_token}_class_images" \
   --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
-  --class_prompt="a ${class_token} posing" \
+  --class_prompt="a ${class_token}" \
   --num_class_images=200 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
@@ -57,7 +57,7 @@ python train_dreambooth_sdxl_lora.py \
   --max_train_steps=1000 \
   --learning_rate=5e-6 \
   --mixed_precision="fp16" \
-  --prior_loss_weight=1 \
+  --prior_loss_weight=0.2 \
   --use_8bit_adam \
   --gradient_checkpointing 
  
