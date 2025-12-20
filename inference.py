@@ -104,6 +104,7 @@ else:
 pipeline.to('cuda')
 
 # Load LoRA
+print(f"Loading LoRA weights from {args.lora_ckpt}...")
 pipeline.load_lora_weights(args.lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
 
 output_dir = f'{class_token}_inference_results'
