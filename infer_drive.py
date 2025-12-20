@@ -2,18 +2,14 @@ from diffusers import StableDiffusionXLPipeline
 import torch
 import gdown
 
-link = 'https://drive.google.com/file/d/1HQ5SoQqlghc4_WRI-7Vqy5x-22yigqls/view?usp=drive_link'
-lora_path = gdown.download(link, 'pytorch_lora_weights.safetensors', quiet=False)
+
 
 pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     torch_dtype=torch.float16,
 )
 
-pipe.load_lora_weights(
-    lora_path,
-    weight_name="pytorch_lora_weights.safetensors"
-)
+pipe.load_lora_weights("pytorch_lora_weights.safetensors")
 pipe.to('cuda')
 
 torch.manual_seed(23)
