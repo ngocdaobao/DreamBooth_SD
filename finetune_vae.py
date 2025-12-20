@@ -1066,36 +1066,35 @@ def main(args):
 
     vae.train()
     global_step = 0
-    for step, batch in enumerate(dataloader):
-        if step >= args.max_train_steps:
-            break
+    while global_step <= args.max_train_steps:
+        for batch in enumerate(dataloader):
 
-        # Move inputs to the accelerator device
-        # Ensure inputs are on the accelerator device and use float32 for stability
-        pixel_values = batch["pixel_values"].to(device=accelerator.device, dtype=torch.float32)
+            # Move inputs to the accelerator device
+            # Ensure inputs are on the accelerator device and use float32 for stability
+            pixel_values = batch["pixel_values"].to(device=accelerator.device, dtype=torch.float32)
 
-        # Encode images to latents (encoder frozen by default, run with no grad)
-        with torch.no_grad():
-            latents = vae.encode(pixel_values).latent_dist.sample()
-            latents = latents * vae.config.scaling_factor
+            # Encode images to latents (encoder frozen by default, run with no grad)
+            with torch.no_grad():
+                latents = vae.encode(pixel_values).latent_dist.sample()
+                latents = latents * vae.config.scaling_factor
 
-        # Decode latents
-        reconstructed = vae.decode(latents).sample
+            # Decode latents
+            reconstructed = vae.decode(latents).sample
 
-        # Compute reconstruction loss
-        loss = F.mse_loss(reconstructed, pixel_values)
+            # Compute reconstruction loss
+            loss = F.mse_loss(reconstructed, pixel_values)
 
-        # Backprop via accelerator
-        accelerator.backward(loss)
-        optimizer.step()
-        optimizer.zero_grad()
+            # Backprop via accelerator
+            accelerator.backward(loss)
+            optimizer.step()
+            optimizer.zero_grad()
 
-        global_step += 1
-        progesss_bar.update(1)
-        progesss_bar.set_postfix({"loss": loss.item(), "step": global_step})
+            global_step += 1
+            progesss_bar.update(1)
+            progesss_bar.set_postfix({"loss": loss.item(), "step": global_step})
 
-        if global_step >= args.max_train_steps:
-            break
+            if global_step >= args.max_train_steps:
+                break
 
     # Save the finetuned VAE model (only on main process)
     accelerator.wait_for_everyone()
