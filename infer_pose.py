@@ -29,7 +29,7 @@ pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street'
-negative_prompt = 'identity drift, abnormal body'
+negative_prompt = 'identity drift, abnormal body, blurry'
 torch.manual_seed(30)
 result = pipe(
     prompt=prompt,
