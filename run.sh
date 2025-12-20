@@ -54,10 +54,10 @@ python train_dreambooth_pose.py \
   --unique_token="${unique_token}" \
   --resolution=1024 \
   --train_batch_size=1 \
-  --max_train_steps=100 \
+  --max_train_steps=1000 \
   --learning_rate=5e-5 \
   --mixed_precision="fp16" \
-  --prior_loss_weight=0.2 \
+  --prior_loss_weight=1 \
   --use_8bit_adam \
   --gradient_checkpointing 
  
