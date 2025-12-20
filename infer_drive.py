@@ -12,6 +12,6 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 pipe.load_lora_weights("cat_dreambooth_model/pytorch_lora_weights.safetensors")
 pipe.to('cuda')
 
-torch.manual_seed(7)
+torch.manual_seed(60)
 image = pipe(prompt ='rwt cat is seen from the top view', num_inference_steps=40, guidance_scale=7.5).images[0]
 image.save('cat_top.png')
