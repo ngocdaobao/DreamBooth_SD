@@ -42,7 +42,7 @@ fi
 
 echo "Using class_token=${class_token}, unique_token=${unique_token} (default)"
 
-python train_dreambooth_sdxl_lora.py \
+python inference.py \
     --lora_ckpt="${class_token}_dreambooth_model/pytorch_lora_weights.safetensors" \
     --class_token="${class_token}" \
     --unique_token="${unique_token}" 
