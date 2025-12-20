@@ -20,7 +20,7 @@ print("Load VAE from:", vae_path)
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
-    vae=vae,
+    # vae=vae,
     torch_dtype=torch.float16,
 )
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
