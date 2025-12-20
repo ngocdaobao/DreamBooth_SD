@@ -1067,7 +1067,7 @@ def main(args):
     vae.train()
     global_step = 0
     while global_step <= args.max_train_steps:
-        for batch in enumerate(dataloader):
+        for batch in dataloader:
 
             # Move inputs to the accelerator device
             # Ensure inputs are on the accelerator device and use float32 for stability
