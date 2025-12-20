@@ -1,4 +1,4 @@
-from diffusers import StableDiffusionXLControlNetPipeline
+from diffusers import StableDiffusionXLControlNetPipeline, AutoencoderKL
 from diffusers import ControlNetModel
 from controlnet_aux import OpenposeDetector
 import torch
@@ -7,13 +7,20 @@ import gdown
 
 link = "https://drive.google.com/file/d/1gNjI7LlcSdlJwa50Dw9p9o8wgJkfcrOH/view?usp=drive_link"
 
-
+vae_path = "girl_dreambooth_model/vae_finetuned/diffusion_pytorch_model.safetensors"
 lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
+
+vae = AutoencoderKL.from_single_file(
+    vae_path,
+    torch_dtype=torch.float16,
+)
+
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
+    vae=vae,
     torch_dtype=torch.float16,
 )
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
@@ -22,11 +29,11 @@ pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street'
-# negative_prompt = 'identity drift, abnormal body'
+negative_prompt = 'identity drift, abnormal body'
 torch.manual_seed(2)
 result = pipe(
     prompt=prompt,
-    # negative_prompt=negative_prompt,
+    negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
     guidance_scale=7.5,
@@ -36,4 +43,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_prompt_output.png")
+result.save("pose_with_vae_finetuned.png")
