@@ -2221,12 +2221,12 @@ def main(args):
     #         kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
     #         save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
 
-        if args.save_vae:
-            vae_to_save = unwrap_model(vae)
-            vae_dir = os.path.join(args.output_dir, "vae")
-            os.makedirs(vae_dir, exist_ok=True)
-            vae_to_save.save_pretrained(vae_dir)
-            logger.info(f"Saved final VAE weights to {vae_dir}")
+    
+        vae_to_save = unwrap_model(vae)
+        vae_dir = os.path.join(args.output_dir, "vae")
+        os.makedirs(vae_dir, exist_ok=True)
+        vae_to_save.save_pretrained(vae_dir)
+        logger.info(f"Saved final VAE weights to {vae_dir}")
 
         # Final inference
         # Load previous pipeline
