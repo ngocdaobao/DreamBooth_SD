@@ -8,8 +8,6 @@ lora_path = gdown.download(link, 'pytorch_lora_weights.safetensors', quiet=False
 pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     torch_dtype=torch.float16,
-    variant="fp16",
-    use_safetensors=True,
 )
 
 pipe.load_lora_weights(lora_path)
