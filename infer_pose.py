@@ -30,7 +30,7 @@ pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a photo of sks girl in Paris street, high quality'
 negative_prompt = 'identity drift, abnormal body, blurry'
-torch.manual_seed(30)
+torch.manual_seed(2)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
