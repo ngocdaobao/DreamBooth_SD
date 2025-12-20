@@ -11,16 +11,16 @@ vae_path = "girl_dreambooth_model/vae_finetuned/diffusion_pytorch_model.safetens
 lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
-print("Load VAE from:", vae_path)
-vae = AutoencoderKL.from_single_file(
-    vae_path,
-    torch_dtype=torch.float16,
-)
+# print("Load VAE from:", vae_path)
+# vae = AutoencoderKL.from_single_file(
+#     vae_path,
+#     torch_dtype=torch.float16,
+# )
 
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
-    vae=vae,
+    # vae=vae,
     torch_dtype=torch.float16,
 )
 pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
@@ -30,7 +30,7 @@ pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a sks girl with clear sks face, in Paris street, high resolution'
 negative_prompt = 'identity drift, blurry, low quality'
-torch.manual_seed(20)
+torch.manual_seed(50)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
