@@ -49,7 +49,7 @@ python train_dreambooth_sdxl_lora.py \
   --output_dir="dog2_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
   --class_prompt="a ${class_token} posing" \
-  --num_class_images=20 \
+  --num_class_images=100 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
   --resolution=1024 \
