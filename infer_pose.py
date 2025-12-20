@@ -11,7 +11,7 @@ vae_path = "girl_dreambooth_model/vae_finetuned/diffusion_pytorch_model.safetens
 lora_ckpt = gdown.download(link, quiet=False, fuzzy=True)
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
-
+print("Load VAE from:", vae_path)
 vae = AutoencoderKL.from_single_file(
     vae_path,
     torch_dtype=torch.float16,
@@ -38,7 +38,7 @@ result = pipe(
     num_inference_steps=40,
     guidance_scale=7.5,
 
-    controlnet_conditioning_scale=1,
+    controlnet_conditioning_scale=1.0,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
