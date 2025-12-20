@@ -39,7 +39,7 @@ result = pipe(
     guidance_scale=7.5,
 
     controlnet_conditioning_scale=1.0,
-    control_guidance_start=0.0,   # 🔑 start pose late
+    control_guidance_start=0.5,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
 
