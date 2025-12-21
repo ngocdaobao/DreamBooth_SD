@@ -13,5 +13,6 @@ pipe.load_lora_weights("cat_dreambooth_model/pytorch_lora_weights.safetensors")
 pipe.to('cuda')
 
 torch.manual_seed(700)
-image = pipe(prompt ='rwt cat seen from the back', num_inference_steps=40, guidance_scale=7.5).images[0]
+negative_prompt = "front view"
+image = pipe(prompt ='rwt cat seen from the back', negative_prompt=negative_prompt, num_inference_steps=40, guidance_scale=7.5).images[0]
 image.save('cat_back.png')
