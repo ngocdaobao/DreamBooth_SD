@@ -9,7 +9,7 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
     torch_dtype=torch.float16,
 )
 
-pipe.load_lora_weights("cat_dreambooth_model/pytorch_lora_weights.safetensors")
+pipe.load_lora_weights("dog2_dreambooth_model/pytorch_lora_weights.safetensors")
 pipe.to('cuda')
 
 torch.manual_seed(48)
