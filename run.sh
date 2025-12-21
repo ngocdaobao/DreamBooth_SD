@@ -58,7 +58,7 @@ python train_dreambooth_sdxl_lora.py \
   --max_train_steps=1000 \
   --learning_rate=5e-5 \
   --mixed_precision="fp16" \
-  --prior_loss_weight=1.0 \
+  --prior_loss_weight=0.3 \
   --use_8bit_adam \
   --gradient_checkpointing 
  
