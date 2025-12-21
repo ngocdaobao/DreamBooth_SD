@@ -12,6 +12,6 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 pipe.load_lora_weights("dog2_dreambooth_model/pytorch_lora_weights.safetensors")
 pipe.to('cuda')
 
-torch.manual_seed(24)
+torch.manual_seed(48)
 image = pipe(prompt ='rwt dog wearing chef outfit', num_inference_steps=40, guidance_scale=7.5).images[0]
 image.save('dog.png')
