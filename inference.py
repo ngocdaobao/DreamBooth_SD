@@ -126,7 +126,7 @@ generated_images = {k: [] for k in prompt_view}
 
 for idx, prompt in prompt_view.items():
     for i in range(args.num_per_prompt):
-        set_seed = args.seed * (i + 1) * 200
+        set_seed = i+1
         torch.manual_seed(set_seed)
 
         if args.use_controlnet:
