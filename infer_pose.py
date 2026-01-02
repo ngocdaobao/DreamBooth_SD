@@ -43,4 +43,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_with_vae_finetuned.png")
+result.save("pose_face_loss.png")
