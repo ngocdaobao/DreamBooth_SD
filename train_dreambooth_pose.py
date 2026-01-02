@@ -1213,7 +1213,7 @@ def main(args):
             for p in proc.parameters():
                 # LoRA attention-processor parameters are frozen by default
                 p.requires_grad = False
-    logger.info("UNet LoRA adapter parameters are frozen by default (requires_grad=False). To enable adapter training, modify the script to set their requires_grad=True.")
+    logger.info("UNet parameters are frozen by default (requires_grad=False). To enable adapter training, modify the script to set their requires_grad=True.")
 
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
