@@ -502,14 +502,6 @@ def parse_args(input_args=None):
     )
 
     parser.add_argument(
-        "--save_vae",
-        action="store_true",
-        default=False,
-        help=(
-            "If set, save the VAE weights to the output directory (in 'vae/' subfolder) when checkpoints are saved and at the end of training."
-        ),
-    )
-    parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
         default=1,
@@ -1322,12 +1314,10 @@ def main(args):
     # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
     def save_model_hook(models, weights, output_dir):
         if accelerator.is_main_process:
-            # there are only two options here. Either are just the unet attn processor layers
-            # or there are the unet and text encoder atten layers
+            # Save only LoRA adapters (UNet always, text encoders if enabled)
             unet_lora_layers_to_save = None
             text_encoder_one_lora_layers_to_save = None
             text_encoder_two_lora_layers_to_save = None
-            vae_to_save = None
 
             for model in models:
                 if isinstance(model, type(unwrap_model(unet))):
@@ -1340,8 +1330,6 @@ def main(args):
                     text_encoder_two_lora_layers_to_save = convert_state_dict_to_diffusers(
                         get_peft_model_state_dict(model)
                     )
-                elif isinstance(model, type(unwrap_model(vae))):
-                    vae_to_save = model
                 else:
                     raise ValueError(f"unexpected save model: {model.__class__}")
 
@@ -1354,13 +1342,6 @@ def main(args):
                 text_encoder_lora_layers=text_encoder_one_lora_layers_to_save,
                 text_encoder_2_lora_layers=text_encoder_two_lora_layers_to_save
             )
-
-            if args.save_vae and vae_to_save is not None:
-                vae_unwrapped = unwrap_model(vae_to_save)
-                vae_dir = os.path.join(output_dir, "vae")
-                os.makedirs(vae_dir, exist_ok=True)
-                vae_unwrapped.save_pretrained(vae_dir)
-                logger.info(f"Saved VAE weights to {vae_dir}")
 
     def load_model_hook(models, input_dir):
         unet_ = None
@@ -2195,31 +2176,31 @@ def main(args):
                 )
 
     # Save the lora layers
-    # accelerator.wait_for_everyone()
-    # if accelerator.is_main_process:
-    #     unet = unwrap_model(unet)
-    #     unet = unet.to(torch.float32)
-    #     unet_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    accelerator.wait_for_everyone()
+    if accelerator.is_main_process:
+        unet = unwrap_model(unet)
+        unet = unet.to(torch.float32)
+        unet_lora_layers = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
 
-    #     if args.train_text_encoder:
-    #         text_encoder_one = unwrap_model(text_encoder_one)
-    #         text_encoder_lora_layers = convert_state_dict_to_diffusers(
-    #             get_peft_model_state_dict(text_encoder_one.to(torch.float32))
-    #         )
-    #         text_encoder_two = unwrap_model(text_encoder_two)
-    #         text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
-    #             get_peft_model_state_dict(text_encoder_two.to(torch.float32))
-    #         )
-    #     else:
-    #         text_encoder_lora_layers = None
-    #         text_encoder_2_lora_layers = None
+        if args.train_text_encoder:
+            text_encoder_one = unwrap_model(text_encoder_one)
+            text_encoder_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_one.to(torch.float32))
+            )
+            text_encoder_two = unwrap_model(text_encoder_two)
+            text_encoder_2_lora_layers = convert_state_dict_to_diffusers(
+                get_peft_model_state_dict(text_encoder_two.to(torch.float32))
+            )
+        else:
+            text_encoder_lora_layers = None
+            text_encoder_2_lora_layers = None
 
-    #     StableDiffusionXLPipeline.save_lora_weights(
-    #         save_directory=args.output_dir,
-    #         unet_lora_layers=unet_lora_layers,
-    #         text_encoder_lora_layers=text_encoder_lora_layers,
-    #         text_encoder_2_lora_layers=text_encoder_2_lora_layers,
-    #     )
+        StableDiffusionXLPipeline.save_lora_weights(
+            save_directory=args.output_dir,
+            unet_lora_layers=unet_lora_layers,
+            text_encoder_lora_layers=text_encoder_lora_layers,
+            text_encoder_2_lora_layers=text_encoder_2_lora_layers,
+        )
     #     if args.output_kohya_format:
     #         lora_state_dict = load_file(f"{args.output_dir}/pytorch_lora_weights.safetensors")
     #         peft_state_dict = convert_all_state_dict_to_peft(lora_state_dict)
