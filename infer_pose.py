@@ -7,7 +7,12 @@ import gdown
 
 
 
-lora_ckpt = gdown.download('https://drive.google.com/file/d/1W39qIrpJzyJk-gIa2-TsN0_MQG5Jcq4U/view?usp=drive_link')
+lora_ckpt = gdown.download(
+    "https://drive.google.com/file/d/1W39qIrpJzyJk-gIa2-TsN0_MQG5Jcq4U/view",
+    output="lora_ckpt.safetensors",
+    fuzzy=True
+)
+
 vae_path = 'girl_dreambooth_model/vae_finetuned/diffusion_pytorch_model.safetensors'
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
@@ -24,7 +29,7 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     torch_dtype=torch.float16,
 )
 
-pipe.load_lora_weights(lora_ckpt,)
+pipe.load_lora_weights(lora_ckpt)
 pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
