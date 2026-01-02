@@ -2077,27 +2077,33 @@ def main(args):
                     print(f"[Face Consistency] Error in face loss: {e}")
                     face_loss = 0.0
 
-                total_loss = loss + lambda_face * face_loss
+                loss +=lambda_face * face_loss
+                #Check whether vae is trainable
+                for n, p in vae.named_parameters():
+                    if p.requires_grad:
+                        logger.warning(
+                            f"VAE parameter {n} is set to requires_grad=True."
+                        )
                 # Sanity: ensure loss requires grad otherwise backward will fail with an unhelpful traceback
-                if not getattr(loss, "requires_grad", False):
-                    # Gather helpful diagnostic info
-                    unet_lora_tr = sum(1 for p in unet.parameters() if getattr(p, "requires_grad", False))
-                    vae_dec_tr = sum(1 for p in vae.parameters() if getattr(p, "requires_grad", False))
-                    txt1_tr = sum(1 for p in text_encoder_one.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
-                    txt2_tr = sum(1 for p in text_encoder_two.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
-                    msg = (
-                        "Computed loss does not require grad. This means the loss did not depend on any trainable parameters.\n"
-                        f"Trainable parameter counts (unet total): {unet_lora_tr}, (vae decoder total): {vae_dec_tr}, "
-                        f"(text encoder1): {txt1_tr}, (text encoder2): {txt2_tr}.\n"
-                        f"Current flags: --vae_recon_weight={getattr(args, 'vae_recon_weight', 0.0)}.\n"
-                    )
-                    if vae_dec_tr > 0 and getattr(args, "vae_recon_weight", 0.0) == 0.0:
-                        msg += "You have enabled VAE decoder parameters to be trainable but the VAE reconstruction loss weight is 0.0; set --vae_recon_weight > 0 to enable a reconstruction loss that depends on the decoder.\n"
-                    msg += (
-                        "Fix: set --vae_recon_weight > 0 to add a VAE decoder loss, or modify the script to enable adapter/UNet parameter training "
-                        "by setting their `requires_grad=True` if you intend to train adapters."
-                    )
-                    raise RuntimeError(msg)
+                # if not getattr(loss, "requires_grad", False):
+                #     # Gather helpful diagnostic info
+                #     unet_lora_tr = sum(1 for p in unet.parameters() if getattr(p, "requires_grad", False))
+                #     # vae_dec_tr = sum(1 for p in vae.parameters() if getattr(p, "requires_grad", False))
+                #     txt1_tr = sum(1 for p in text_encoder_one.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
+                #     txt2_tr = sum(1 for p in text_encoder_two.parameters() if getattr(p, "requires_grad", False)) if args.train_text_encoder else 0
+                #     msg = (
+                #         "Computed loss does not require grad. This means the loss did not depend on any trainable parameters.\n"
+                #         f"Trainable parameter counts (unet total): {unet_lora_tr}, (vae decoder total): {vae_dec_tr}, "
+                #         f"(text encoder1): {txt1_tr}, (text encoder2): {txt2_tr}.\n"
+                #         f"Current flags: --vae_recon_weight={getattr(args, 'vae_recon_weight', 0.0)}.\n"
+                #     )
+                #     if vae_dec_tr > 0 and getattr(args, "vae_recon_weight", 0.0) == 0.0:
+                #         msg += "You have enabled VAE decoder parameters to be trainable but the VAE reconstruction loss weight is 0.0; set --vae_recon_weight > 0 to enable a reconstruction loss that depends on the decoder.\n"
+                #     msg += (
+                #         "Fix: set --vae_recon_weight > 0 to add a VAE decoder loss, or modify the script to enable adapter/UNet parameter training "
+                #         "by setting their `requires_grad=True` if you intend to train adapters."
+                #     )
+                #     raise RuntimeError(msg)
                 accelerator.backward(loss)
 
                 if accelerator.sync_gradients:
@@ -2220,12 +2226,6 @@ def main(args):
     #         kohya_state_dict = convert_state_dict_to_kohya(peft_state_dict)
     #         save_file(kohya_state_dict, f"{args.output_dir}/pytorch_lora_weights_kohya.safetensors")
 
-    
-        vae_to_save = unwrap_model(vae)
-        vae_dir = os.path.join(args.output_dir, "vae")
-        os.makedirs(vae_dir, exist_ok=True)
-        vae_to_save.save_pretrained(vae_dir)
-        logger.info(f"Saved final VAE weights to {vae_dir}")
 
         # Final inference
         # Load previous pipeline
