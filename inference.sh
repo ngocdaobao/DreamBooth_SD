@@ -13,7 +13,7 @@ set -euo pipefail
 #   ./run.sh            # uses defaults
 
 # Defaults
-DEFAULT_UNIQUE="sks"
+DEFAULT_UNIQUE="rwt"
 
 unique_token="$DEFAULT_UNIQUE"
 
