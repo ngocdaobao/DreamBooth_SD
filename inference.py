@@ -4,6 +4,7 @@ import torch
 import argparse
 import os
 from PIL import Image
+import matplotlib.pyplot as plt
 
 
 parser = argparse.ArgumentParser()
@@ -63,6 +64,7 @@ prompt_view = {
     '4':'a {0} {1} seen from top view'.format(unique_token, class_token)
 }
 
+control_image = None
 if args.use_controlnet:
     if args.controlnet_ckpt is None:
         raise ValueError("Please provide --controlnet_ckpt when using ControlNet")
@@ -70,6 +72,9 @@ if args.use_controlnet:
         args.controlnet_ckpt,
         torch_dtype=torch.float16,
     )
+    if args.controlnet_condition_path is None:
+        raise ValueError("Please provide --controlnet_condition_path when using ControlNet")
+    control_image = Image.open(args.controlnet_condition_path).convert("RGB")
 
 if args.use_vae_finetuned:
     if args.vae_ckpt is None:
@@ -80,7 +85,7 @@ if args.use_vae_finetuned:
     )
 
 if args.use_controlnet and args.use_vae_finetuned:
-    pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+    pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
         args.base_model,
         controlnet=controlnet,
         vae=vae,
@@ -88,14 +93,14 @@ if args.use_controlnet and args.use_vae_finetuned:
         use_safetensors=True,
     )
 elif args.use_controlnet:
-    pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+    pipeline = StableDiffusionXLControlNetPipeline.from_pretrained(
         args.base_model,
         controlnet=controlnet,
         torch_dtype=torch.float16,
         use_safetensors=True,
     )
 elif args.use_vae_finetuned:
-    pipe = StableDiffusionXLPipeline.from_pretrained(
+    pipeline = StableDiffusionXLPipeline.from_pretrained(
         args.base_model,
         vae=vae,
         torch_dtype=torch.float16,
@@ -117,15 +122,20 @@ pipeline.load_lora_weights(args.lora_ckpt, weight_name="pytorch_lora_weights.saf
 output_dir = f'{class_token}_inference_results'
 os.makedirs(output_dir, exist_ok=True)
 
+generated_images = {k: [] for k in prompt_view}
+
 for idx, prompt in prompt_view.items():
     for i in range(args.num_per_prompt):
-        set_seed = args.seed*(i+1)*200
+        set_seed = args.seed * (i + 1) * 200
         torch.manual_seed(set_seed)
 
         if args.use_controlnet:
-            if args.controlnet_condition_path is None:
-                raise ValueError("Please provide --controlnet_condition_path when using ControlNet")
-            
+            result = pipeline(
+                prompt=prompt,
+                image=control_image,
+                num_inference_steps=args.num_inference_steps,
+                guidance_scale=7.5,
+            ).images[0]
         else:
             result = pipeline(
                 prompt=prompt,
@@ -133,7 +143,32 @@ for idx, prompt in prompt_view.items():
                 guidance_scale=7.5,
             ).images[0]
 
-        result.save(f"{output_dir}/{idx}_{i}_view.png") 
+        generated_images[idx].append(result)
+        result.save(f"{output_dir}/{idx}_{i}_view.png")
+
+# Plot each prompt in its own row so views stay together
+rows = len(prompt_view)
+cols = args.num_per_prompt
+fig, axes = plt.subplots(rows, cols, figsize=(cols * 2, rows * 2))
+
+if rows == 1:
+    axes_grid = [axes]
+elif cols == 1:
+    axes_grid = [[ax] for ax in axes]
+else:
+    axes_grid = axes
+
+for row_idx, (idx, images) in enumerate(generated_images.items()):
+    for col_idx in range(cols):
+        axes_grid[row_idx][col_idx].imshow(images[col_idx])
+        axes_grid[row_idx][col_idx].axis("off")
+        if col_idx == 0:
+            axes_grid[row_idx][col_idx].set_ylabel(f"Prompt {idx}", fontsize=8)
+
+fig.suptitle("Generated views", fontsize=12)
+plt.tight_layout()
+plt.savefig(f"{output_dir}/grid.png")
+plt.close(fig)
 
 
 
