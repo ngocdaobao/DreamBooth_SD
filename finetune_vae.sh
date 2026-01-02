@@ -48,7 +48,6 @@ python finetune_vae.py \
   --class_data_dir="${class_token}_class_images" \
   --output_dir="${class_token}_dreambooth_model" \
   --instance_prompt="a ${unique_token} ${class_token}" \
-  --class_prompt="a ${class_token} posing" \
   --num_class_images=20 \
   --class_token="${class_token}" \
   --unique_token="${unique_token}" \
