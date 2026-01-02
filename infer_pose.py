@@ -8,7 +8,7 @@ import gdown
 
 
 vae_path = "girl_dreambooth_model/vae/diffusion_pytorch_model.safetensors"
-lora_ckpt = ''
+lora_ckpt = 'girl_dreambooth_model/pytorch_lora_weights.safetensors'
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
 print("Load VAE from:", vae_path)
