@@ -1,4 +1,4 @@
-from diffusers import StableDiffusionXLControlNetPipeline, AutoencoderKL
+from diffusers import StableDiffusionXLControlNetPipeline, AutoencoderKL, StableDiffusionXLPipeline
 from diffusers import ControlNetModel
 from controlnet_aux import OpenposeDetector
 import torch
@@ -24,10 +24,15 @@ vae = AutoencoderKL.from_single_file(
     torch_dtype=torch.float16
 ).to("cuda")
 
-pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+# pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+#     "stabilityai/stable-diffusion-xl-base-1.0",
+#     controlnet=controlnet,
+#     # vae=vae,
+#     torch_dtype=torch.float16,
+# )
+
+pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
-    controlnet=controlnet,
-    # vae=vae,
     torch_dtype=torch.float16,
 )
 
@@ -36,7 +41,8 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a rwt girl in Paris street with this pose: Full-body human figure, dynamic walking pose, front view, upright torso with slight forward lean, head slightly tilted to the right. Left arm extended sideways at shoulder height with a slight elbow bend, right arm bent inward with forearm relaxed downward. Legs crossed mid-stride: left leg stepping forward across the body, knee slightly bent; right leg extended backward with foot lifted. Sense of motion and balance, natural anatomy, realistic proportions, smooth pose transition.'
+# prompt = 'a rwt girl in Paris street with this pose: Full-body human figure, dynamic walking pose, front view, upright torso with slight forward lean, head slightly tilted to the right. Left arm extended sideways at shoulder height with a slight elbow bend, right arm bent inward with forearm relaxed downward. Legs crossed mid-stride: left leg stepping forward across the body, knee slightly bent; right leg extended backward with foot lifted. Sense of motion and balance, natural anatomy, realistic proportions, smooth pose transition.'
+prompt = 'a rwt girl in Paris street'
 negative_prompt = 'identity drift, blurry, low quality, cartoon, unrealistic'
 torch.manual_seed(30)
 
