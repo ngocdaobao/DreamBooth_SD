@@ -27,9 +27,9 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a rwt girl in Paris street, high resolution'
+prompt = 'a rwt girl in Paris street, brown eyes, high resolution'
 negative_prompt = 'identity drift, blurry, low quality'
-torch.manual_seed(32)
+torch.manual_seed(30)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
@@ -37,7 +37,7 @@ result = pipe(
     num_inference_steps=40,
     guidance_scale=6.0,
 
-    controlnet_conditioning_scale=1.5,
+    controlnet_conditioning_scale=1.0,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
