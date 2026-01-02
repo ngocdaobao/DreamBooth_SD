@@ -28,7 +28,7 @@ pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
-prompt = 'a rwt girl with clear sks face, in Paris street, high resolution'
+prompt = 'a rwt girl in Paris street, high resolution'
 negative_prompt = 'identity drift, blurry, low quality'
 torch.manual_seed(42)
 result = pipe(
