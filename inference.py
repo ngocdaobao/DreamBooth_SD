@@ -38,7 +38,7 @@ prompt_list = {
 # '10':'a {0} {1} on top of a purple rug in a forest'.format(unique_token, class_token),
 # '11':'a {0} {1} with a wheat field in the background'.format(unique_token, class_token),
 # '12':'a {0} {1} with a tree and autumn leaves in the background'.format(unique_token, class_token),
-'13':'a {0} {1} with the Eiffel Tower in the background'.format(unique_token, class_token),
+# '13':'a {0} {1} with the Eiffel Tower in the background'.format(unique_token, class_token),
 # '14':'a {0} {1} floating on top of water'.format(unique_token, class_token),
 # '15':'a {0} {1} floating in an ocean of milk'.format(unique_token, class_token),
 # '16':'a {0} {1} on top of green grass with sunflowers around it'.format(unique_token, class_token),
@@ -54,6 +54,13 @@ prompt_list = {
 # '26':'a {0} {1} pouring tea'.format(unique_token, class_token),
 # '27':'a transparent {0} {1} within milk inside'.format(unique_token, class_token),
 # '28':'a {0} {1} floating in the sea'.format(unique_token, class_token),
+}
+
+prompt_view = {
+    '1':'a {0} {1} seen from front view'.format(unique_token, class_token),
+    '2':'a {0} {1} seen from side view'.format(unique_token, class_token),
+    '3':'a {0} {1} seen from back view'.format(unique_token, class_token),
+    '4':'a {0} {1} seen from top view'.format(unique_token, class_token)
 }
 
 if args.use_controlnet:
@@ -110,7 +117,7 @@ pipeline.load_lora_weights(args.lora_ckpt, weight_name="pytorch_lora_weights.saf
 output_dir = f'{class_token}_inference_results'
 os.makedirs(output_dir, exist_ok=True)
 
-for idx, prompt in prompt_list.items():
+for idx, prompt in prompt_view.items():
     for i in range(args.num_per_prompt):
         set_seed = args.seed*(i+1)*200
         torch.manual_seed(set_seed)
@@ -126,7 +133,7 @@ for idx, prompt in prompt_list.items():
                 guidance_scale=7.5,
             ).images[0]
 
-        result.save(f"{output_dir}/{idx}_{i}.png") 
+        result.save(f"{output_dir}/{idx}_{i}_view.png") 
 
 
 
