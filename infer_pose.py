@@ -35,9 +35,9 @@ result = pipe(
     negative_prompt=negative_prompt,
     image=pose_image,
     num_inference_steps=40,
-    guidance_scale=7.5,
+    guidance_scale=6.0,
 
-    controlnet_conditioning_scale=1.0,
+    controlnet_conditioning_scale=1.5,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
