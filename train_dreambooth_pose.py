@@ -1214,9 +1214,9 @@ def main(args):
     # We only train the additional adapter LoRA layers and the VAE decoder
     # Freeze entire VAE first, then enable decoder parameters for training
     vae.requires_grad_(False)
-    for name, param in vae.named_parameters():
-        if "decoder" in name:
-            param.requires_grad = True
+    # for name, param in vae.named_parameters():
+    #     if "decoder" in name:
+    #         param.requires_grad = True
 
     text_encoder_one.requires_grad_(False)
     text_encoder_two.requires_grad_(False)
@@ -1273,46 +1273,46 @@ def main(args):
             text_encoder_one.gradient_checkpointing_enable()
             text_encoder_two.gradient_checkpointing_enable()
 
-    # def get_lora_config(rank, dropout, use_dora, target_modules):
-    #     base_config = {
-    #         "r": rank,
-    #         "lora_alpha": rank,
-    #         "lora_dropout": dropout,
-    #         "init_lora_weights": "gaussian",
-    #         "target_modules": target_modules,
-    #     }
-    #     if use_dora:
-    #         if is_peft_version("<", "0.9.0"):
-    #             raise ValueError(
-    #                 "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
-    #             )
-    #         else:
-    #             base_config["use_dora"] = True
+    def get_lora_config(rank, dropout, use_dora, target_modules):
+        base_config = {
+            "r": rank,
+            "lora_alpha": rank,
+            "lora_dropout": dropout,
+            "init_lora_weights": "gaussian",
+            "target_modules": target_modules,
+        }
+        if use_dora:
+            if is_peft_version("<", "0.9.0"):
+                raise ValueError(
+                    "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
+                )
+            else:
+                base_config["use_dora"] = True
 
-    #     return LoraConfig(**base_config)
+        return LoraConfig(**base_config)
 
     # now we will add new LoRA weights to the attention layers
-    # unet_target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
-    # unet_lora_config = get_lora_config(
-    #     rank=args.rank,
-    #     dropout=args.lora_dropout,
-    #     use_dora=args.use_dora,
-    #     target_modules=unet_target_modules,
-    # )
-    # unet.add_adapter(unet_lora_config)
+    unet_target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
+    unet_lora_config = get_lora_config(
+        rank=args.rank,
+        dropout=args.lora_dropout,
+        use_dora=args.use_dora,
+        target_modules=unet_target_modules,
+    )
+    unet.add_adapter(unet_lora_config)
 
     # The text encoder comes from 🤗 transformers, so we cannot directly modify it.
     # So, instead, we monkey-patch the forward calls of its attention-blocks.
-    # if args.train_text_encoder:
-    #     text_target_modules = ["q_proj", "k_proj", "v_proj", "out_proj"]
-    #     text_lora_config = get_lora_config(
-    #         rank=args.rank,
-    #         dropout=args.lora_dropout,
-    #         use_dora=args.use_dora,
-    #         target_modules=text_target_modules,
-    #     )
-    #     text_encoder_one.add_adapter(text_lora_config)
-    #     text_encoder_two.add_adapter(text_lora_config)
+    if args.train_text_encoder:
+        text_target_modules = ["q_proj", "k_proj", "v_proj", "out_proj"]
+        text_lora_config = get_lora_config(
+            rank=args.rank,
+            dropout=args.lora_dropout,
+            use_dora=args.use_dora,
+            target_modules=text_target_modules,
+        )
+        text_encoder_one.add_adapter(text_lora_config)
+        text_encoder_two.add_adapter(text_lora_config)
 
     def unwrap_model(model):
         model = accelerator.unwrap_model(model)
@@ -1449,11 +1449,11 @@ def main(args):
     unet_lora_parameters_with_lr = {"params": unet_lora_parameters, "lr": args.learning_rate}
 
     # Collect VAE decoder parameters (if any were enabled above)
-    vae_decoder_parameters = list(filter(lambda p: p.requires_grad, vae.parameters()))
-    logger.info(f"VAE decoder trainable parameters: {len(vae_decoder_parameters)}")
-    vae_decoder_parameters_with_lr = None
-    if len(vae_decoder_parameters) > 0:
-        vae_decoder_parameters_with_lr = {"params": vae_decoder_parameters, "lr": args.learning_rate}
+    # vae_decoder_parameters = list(filter(lambda p: p.requires_grad, vae.parameters()))
+    # logger.info(f"VAE decoder trainable parameters: {len(vae_decoder_parameters)}")
+    # vae_decoder_parameters_with_lr = None
+    # if len(vae_decoder_parameters) > 0:
+    #     vae_decoder_parameters_with_lr = {"params": vae_decoder_parameters, "lr": args.learning_rate}
 
     if args.train_text_encoder:
         # different learning rate for text encoder and unet
@@ -1476,8 +1476,8 @@ def main(args):
         params_to_optimize = [unet_lora_parameters_with_lr]
 
     # If VAE decoder params exist, add them to the optimizer groups so the decoder is trained
-    if vae_decoder_parameters_with_lr is not None:
-        params_to_optimize.append(vae_decoder_parameters_with_lr) 
+    # if vae_decoder_parameters_with_lr is not None:
+    #     params_to_optimize.append(vae_decoder_parameters_with_lr) 
 
     # Optimizer creation
     if not (args.optimizer.lower() == "prodigy" or args.optimizer.lower() == "adamw"):
@@ -1658,12 +1658,12 @@ def main(args):
 
     # Prepare everything with our `accelerator`.
     if args.train_text_encoder:
-        unet, vae, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-            unet, vae, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler
+        unet, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            unet, text_encoder_one, text_encoder_two, optimizer, train_dataloader, lr_scheduler
         )
     else:
-        unet, vae, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
-            unet, vae, optimizer, train_dataloader, lr_scheduler
+        unet, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
+            unet, optimizer, train_dataloader, lr_scheduler
         )
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
@@ -1767,27 +1767,27 @@ def main(args):
     
     pose_cycle = itertools.cycle(poses)
 
-    # # Extract embedding face in input using lightweight face encoder
-    # face_encoder = FaceAnalysis(
-    #     name="buffalo_l",  # or mobilenetv2-glint360k
-    #     providers=["CUDAExecutionProvider"]
-    # )
-    # face_encoder.prepare(ctx_id=0)
-    # # Precompute embeddings for all input faces (assuming one face per image)
-    # face_embeddings = []
-    # for face in os.listdir(args.instance_data_dir):
-    #     face_path = os.path.join(args.instance_data_dir, face)
-    #     try:
-    #         face_img = Image.open(face_path).convert('RGB')
-    #         face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
-    #         emb = face_encoder.get(face_np)[0].embedding
-    #         face_embeddings.append(emb)
-    #     except Exception as e:
-    #         print(f"[Face Consistency] Failed to process {face_path}: {e}")
-    #         continue
-    # all_embs = np.stack(face_embeddings, axis=0)
-    # mean_emb = np.mean(all_embs, axis=0)
-    # mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
+    # Extract embedding face in input using lightweight face encoder
+    face_encoder = FaceAnalysis(
+        name="buffalo_l",  # or mobilenetv2-glint360k
+        providers=["CUDAExecutionProvider"]
+    )
+    face_encoder.prepare(ctx_id=0)
+    # Precompute embeddings for all input faces (assuming one face per image)
+    face_embeddings = []
+    for face in os.listdir(args.instance_data_dir):
+        face_path = os.path.join(args.instance_data_dir, face)
+        try:
+            face_img = Image.open(face_path).convert('RGB')
+            face_np = np.array(face_img)[:, :, ::-1]  # RGB to BGR for insightface
+            emb = face_encoder.get(face_np)[0].embedding
+            face_embeddings.append(emb)
+        except Exception as e:
+            print(f"[Face Consistency] Failed to process {face_path}: {e}")
+            continue
+    all_embs = np.stack(face_embeddings, axis=0)
+    mean_emb = np.mean(all_embs, axis=0)
+    mean_emb_t = torch.tensor(mean_emb, dtype=torch.float32)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
@@ -2056,29 +2056,29 @@ def main(args):
 
                 # --- Face Consistency Loss ---
                 # For each generated image, compute cosine similarity to the mean embedding of all original faces
-                # lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
-                # face_loss = 0.0
-                # num_valid = 0
-                # try:
-                #     with torch.no_grad():
-                #         gen_imgs = vae.decode(model_pred.float()).sample
-                #     batch_size = gen_imgs.shape[0]
-                #     for i in range(batch_size):
-                #         gen_img = gen_imgs[i].detach().cpu().numpy()
-                #         gen_img = np.transpose(gen_img, (1, 2, 0))  # CHW to HWC
-                #         gen_img = (gen_img * 255).clip(0, 255).astype(np.uint8)
-                #         gen_embs = face_encoder.get(gen_img)
-                #         if len(gen_embs) == 0:
-                #             continue
-                #         gen_emb = gen_embs[0].embedding
-                #         gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
-                #         sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
-                #         face_loss += (1 - sim)
-                # except Exception as e:
-                #     print(f"[Face Consistency] Error in face loss: {e}")
-                #     face_loss = 0.0
+                lambda_face = 0.5  # Weight for face consistency loss (tune as needed)
+                face_loss = 0.0
+                num_valid = 0
+                try:
+                    with torch.no_grad():
+                        gen_imgs = vae.decode(model_pred.float()).sample
+                    batch_size = gen_imgs.shape[0]
+                    for i in range(batch_size):
+                        gen_img = gen_imgs[i].detach().cpu().numpy()
+                        gen_img = np.transpose(gen_img, (1, 2, 0))  # CHW to HWC
+                        gen_img = (gen_img * 255).clip(0, 255).astype(np.uint8)
+                        gen_embs = face_encoder.get(gen_img)
+                        if len(gen_embs) == 0:
+                            continue
+                        gen_emb = gen_embs[0].embedding
+                        gen_emb_t = torch.tensor(gen_emb, dtype=torch.float32, device=mean_emb_t.device)
+                        sim = F.cosine_similarity(mean_emb_t.unsqueeze(0), gen_emb_t.unsqueeze(0)).mean()
+                        face_loss += (1 - sim)
+                except Exception as e:
+                    print(f"[Face Consistency] Error in face loss: {e}")
+                    face_loss = 0.0
 
-                # total_loss = loss + lambda_face * face_loss
+                total_loss = loss + lambda_face * face_loss
                 # Sanity: ensure loss requires grad otherwise backward will fail with an unhelpful traceback
                 if not getattr(loss, "requires_grad", False):
                     # Gather helpful diagnostic info
@@ -2103,9 +2103,9 @@ def main(args):
 
                 if accelerator.sync_gradients:
                     params_to_clip = (
-                        itertools.chain(unet_lora_parameters, text_lora_parameters_one, text_lora_parameters_two, vae_decoder_parameters)
+                        itertools.chain(unet_lora_parameters, text_lora_parameters_one, text_lora_parameters_two)
                         if args.train_text_encoder
-                        else vae_decoder_parameters
+                        else unet_lora_parameters
                     )
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
 
