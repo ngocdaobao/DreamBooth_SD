@@ -29,7 +29,7 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     torch_dtype=torch.float16,
 )
 
-pipe.load_lora_weights(lora_ckpt)
+# pipe.load_lora_weights(lora_ckpt)
 pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
@@ -50,4 +50,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_vae_face_loss.png")
+result.save("pose_vae_no_face_loss.png")
