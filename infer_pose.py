@@ -37,7 +37,7 @@ pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a rwt girl in Paris street with this pose: Full-body human figure, dynamic walking pose, front view, upright torso with slight forward lean, head slightly tilted to the right. Left arm extended sideways at shoulder height with a slight elbow bend, right arm bent inward with forearm relaxed downward. Legs crossed mid-stride: left leg stepping forward across the body, knee slightly bent; right leg extended backward with foot lifted. Sense of motion and balance, natural anatomy, realistic proportions, smooth pose transition.'
-negative_prompt = 'identity drift, blurry, low quality'
+negative_prompt = 'identity drift, blurry, low quality, cartoon, unrealistic'
 torch.manual_seed(30)
 
 result = pipe(
