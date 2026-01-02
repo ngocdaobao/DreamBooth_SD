@@ -5,14 +5,22 @@ import torch
 from PIL import Image
 import gdown
 
-lora_ckpt = 'girl_dreambooth_model/pytorch_lora_weights.safetensors'
+
+
+lora_ckpt = gdown.download('https://drive.google.com/file/d/1W39qIrpJzyJk-gIa2-TsN0_MQG5Jcq4U/view?usp=sharing')
+vae_path = 'girl_dreambooth_model/vae_finetuned/diffusion_pytorch_model.safetensors'
 pose_detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
 controlnet = ControlNetModel.from_pretrained("thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16)
 
+vae = AutoencoderKL.from_single_file(
+    vae_path,
+    torch_dtype=torch.float16
+).to("cuda")
 
 pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     controlnet=controlnet,
+    vae=vae,
     torch_dtype=torch.float16,
 )
 
@@ -23,7 +31,7 @@ pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a rwt girl in Paris street, high resolution'
 negative_prompt = 'identity drift, blurry, low quality'
-torch.manual_seed(90)
+torch.manual_seed(30)
 
 result = pipe(
     prompt=prompt,
@@ -32,9 +40,9 @@ result = pipe(
     num_inference_steps=40,
     guidance_scale=7.5,
 
-    controlnet_conditioning_scale=1.25,
+    controlnet_conditioning_scale=1.0,
     control_guidance_start=0.0,   # 🔑 start pose late
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_no_face_loss.png")
+result.save("pose_vae_face_loss.png")
