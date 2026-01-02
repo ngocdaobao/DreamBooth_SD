@@ -22,14 +22,14 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
     controlnet=controlnet,
     torch_dtype=torch.float16,
 )
-pipe.load_lora_weights(lora_ckpt, weight_name="pytorch_lora_weights.safetensors")
+pipe.load_lora_weights(lora_ckpt,)
 pipe.to('cuda')
 pose = 'poses/dance_01.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a rwt girl in Paris street, high resolution'
 negative_prompt = 'identity drift, blurry, low quality'
-torch.manual_seed(60)
+torch.manual_seed(32)
 result = pipe(
     prompt=prompt,
     negative_prompt=negative_prompt,
