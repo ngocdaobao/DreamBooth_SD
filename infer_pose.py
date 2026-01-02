@@ -19,7 +19,7 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
 )
 pipe.load_lora_weights(lora_ckpt,)
 pipe.to('cuda')
-pose = 'poses/dance_01.png'
+pose = 'poses/dance_02.png'
 pose_image = Image.open(pose)
 pose_image = pose_image.resize((1024,1024))
 prompt = 'a rwt girl in Paris street, brown eyes, high resolution'
