@@ -42,7 +42,7 @@ fi
 
 echo "Using class_token=${class_token}, unique_token=${unique_token} (default)"
 
-python train_dreambooth_sdxl_lora.py \
+python train_dreambooth_pose.py \
   --pretrained_model_name_or_path="stabilityai/stable-diffusion-xl-base-1.0" \
   --instance_data_dir="dataset/${class_token}" \
   --class_data_dir="${class_token}_class_images" \
@@ -58,7 +58,7 @@ python train_dreambooth_sdxl_lora.py \
   --max_train_steps=1000 \
   --learning_rate=5e-5 \
   --mixed_precision="fp16" \
-  --prior_loss_weight=1.0 \
+  --prior_loss_weight=0.5 \
   --use_8bit_adam \
   --gradient_checkpointing 
  
