@@ -58,9 +58,8 @@ python train_dreambooth_pose.py \
   --max_train_steps=1000 \
   --learning_rate=5e-5 \
   --mixed_precision="fp16" \
-  --prior_loss_weight=0.5 \
+  --prior_loss_weight=0.4 \
   --use_8bit_adam \
-  --gradient_checkpointing \
-  --face_loss 
+  --gradient_checkpointing 
  
 
