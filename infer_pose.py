@@ -52,4 +52,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_no_vae_no_face_loss.png")
+result.save("pose_prompt.png")
