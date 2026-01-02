@@ -58,4 +58,4 @@ result = pipe(
     control_guidance_end=1.0,
 ).images[0]
 
-result.save("pose_prompt.png")
+result.save("no_pose.png")
