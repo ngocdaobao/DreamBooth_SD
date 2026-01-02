@@ -1791,7 +1791,6 @@ def main(args):
 
     for epoch in range(first_epoch, args.num_train_epochs):
         unet.train()
-        vae.train()
         if args.train_text_encoder:
             text_encoder_one.train()
             text_encoder_two.train()
